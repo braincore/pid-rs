@@ -25,11 +25,11 @@ A proportional-integral-derivative (PID) controller.
 
 * All calculations use `f32`.
 * Measurements occur at equal spacing. (`t(i) = t(i-1) + C`)
-* Output limits per term are symmetric around 0 (`-limit < term < limit`).
+* Output limits per term are symmetric around 0 (`-limit <= term <= limit`).
 
 ## Todo
 
-- [ ] Three-term output limit: `MAX(p + i - d, global_limit)`.
+- [ ] Three-term output limit: `MAX(p + i + d, global_limit)`.
 - [ ] Support `f64` via generic type parameters.
 - [ ] Helper for (auto-)tuning by detecting frequency & amplitude of
       oscillations.
