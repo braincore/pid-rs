@@ -1,0 +1,9 @@
+[package]
+name = "pid"
+version = "1.0.0"
+authors = ["Ken Elkabany <ken@elkabany.com>"]
+license = "MIT"
+description = "A PID controller."
+repository = "https://github.com/braincore/pid-rs"
+keywords = ["pid"]
+readme = "README.md"
