@@ -7,3 +7,7 @@ description = "A PID controller."
 repository = "https://github.com/braincore/pid-rs"
 keywords = ["pid"]
 readme = "README.md"
+
+[badges]
+travis-ci = { repository = "braincore/pid-rs" }
+
