@@ -1,4 +1,11 @@
-# PID Controller for Rust
+# PID Controller for Rust [![Latest Version]][crates.io] [![Documentation]][docs.rs] [![Build Status]][travis] 
+
+[Build Status]: https://api.travis-ci.org/braincore/pid-rs.svg?branch=master
+[travis]: https://travis-ci.org/braincore/pid-rs
+[Latest Version]: https://img.shields.io/crates/v/pid.svg
+[crates.io]: https://crates.io/crates/pid
+[Documentation]: https://docs.rs/pid/badge.svg
+[docs.rs]: https://docs.rs/pid
 
 A proportional-integral-derivative (PID) controller.
 
