@@ -37,7 +37,10 @@ pub struct ControlOutput<T: Float> {
     pub output: T,
 }
 
-impl<T> Pid<T> where T: Float {
+impl<T> Pid<T>
+where
+    T: Float,
+{
     pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T) -> Self {
         Self {
             kp,
@@ -86,17 +89,14 @@ impl<T> Pid<T> where T: Float {
         self.integral_term = self.integral_term + error * self.ki;
         // Mitigate integral windup: Don't want to keep building up error
         // beyond what i_limit will allow.
-        self.integral_term = self.i_limit.min(self.integral_term.abs()) * self.integral_term.signum();
+        self.integral_term =
+            self.i_limit.min(self.integral_term.abs()) * self.integral_term.signum();
 
         // Mitigate derivative kick: Use the derivative of the measurement
         // rather than the derivative of the error.
         let d_unbounded = -match self.prev_measurement.as_ref() {
-            Some(prev_measurement) => {
-                measurement - *prev_measurement
-            },
-            None => {
-                T::zero()
-            }
+            Some(prev_measurement) => measurement - *prev_measurement,
+            None => T::zero(),
         } * self.kd;
         self.prev_measurement = Some(measurement);
         let d = self.d_limit.min(d_unbounded.abs()) * d_unbounded.signum();
@@ -105,11 +105,10 @@ impl<T> Pid<T> where T: Float {
             p,
             i: self.integral_term,
             d,
-            output: (p + self.integral_term + d)
+            output: (p + self.integral_term + d),
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -178,27 +177,27 @@ mod tests {
         pid.update_setpoint(10.0);
 
         let out = pid.next_control_output(0.0);
-        assert_eq!(out.p, 10.0);  // 1.0 * 10.0
-        assert_eq!(out.i, 1.0);  // 0.1 * 10.0
-        assert_eq!(out.d, 0.0);  // -(1.0 * 0.0)
+        assert_eq!(out.p, 10.0); // 1.0 * 10.0
+        assert_eq!(out.i, 1.0); // 0.1 * 10.0
+        assert_eq!(out.d, 0.0); // -(1.0 * 0.0)
         assert_eq!(out.output, 11.0);
 
         let out = pid.next_control_output(5.0);
-        assert_eq!(out.p, 5.0);  // 1.0 * 5.0
-        assert_eq!(out.i, 1.5);  // 0.1 * (10.0 + 5.0)
-        assert_eq!(out.d, -5.0);  // -(1.0 * 5.0)
+        assert_eq!(out.p, 5.0); // 1.0 * 5.0
+        assert_eq!(out.i, 1.5); // 0.1 * (10.0 + 5.0)
+        assert_eq!(out.d, -5.0); // -(1.0 * 5.0)
         assert_eq!(out.output, 1.5);
 
         let out = pid.next_control_output(11.0);
-        assert_eq!(out.p, -1.0);  // 1.0 * -1.0
-        assert_eq!(out.i, 1.4);  // 0.1 * (10.0 + 5.0 - 1)
-        assert_eq!(out.d, -6.0);  // -(1.0 * 6.0)
+        assert_eq!(out.p, -1.0); // 1.0 * -1.0
+        assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1)
+        assert_eq!(out.d, -6.0); // -(1.0 * 6.0)
         assert_eq!(out.output, -5.6);
 
         let out = pid.next_control_output(10.0);
-        assert_eq!(out.p, 0.0);  // 1.0 * 0.0
-        assert_eq!(out.i, 1.4);  // 0.1 * (10.0 + 5.0 - 1.0 + 0.0)
-        assert_eq!(out.d, 1.0);  // -(1.0 * -1.0)
+        assert_eq!(out.p, 0.0); // 1.0 * 0.0
+        assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1.0 + 0.0)
+        assert_eq!(out.d, 1.0); // -(1.0 * -1.0)
         assert_eq!(out.output, 2.4);
     }
 
@@ -210,8 +209,14 @@ mod tests {
         let mut pid64 = Pid::new(2.0f64, 0.0, 0.0, 100.0, 100.0, 100.0);
         pid64.update_setpoint(10.0);
 
-        assert_eq!(pid32.next_control_output(0.0).output, pid64.next_control_output(0.0).output as f32);
-        assert_eq!(pid32.next_control_output(0.0).output as f64, pid64.next_control_output(0.0).output);
+        assert_eq!(
+            pid32.next_control_output(0.0).output,
+            pid64.next_control_output(0.0).output as f32
+        );
+        assert_eq!(
+            pid32.next_control_output(0.0).output as f64,
+            pid64.next_control_output(0.0).output
+        );
     }
 
 }
