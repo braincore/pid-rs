@@ -8,6 +8,9 @@ repository = "https://github.com/braincore/pid-rs"
 keywords = ["pid"]
 readme = "README.md"
 
+[dependencies]
+num-traits = "0.2"
+
 [badges]
 travis-ci = { repository = "braincore/pid-rs" }
 

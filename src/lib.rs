@@ -1,42 +1,45 @@
 //! A proportional-integral-derivative (PID) controller.
 
-#[derive(Debug)]
-pub struct Pid {
-    /// Proportional gain.
-    pub kp: f32,
-    /// Integral gain.
-    pub ki: f32,
-    /// Derivative gain.
-    pub kd: f32,
-    /// Limit of contribution of P term: `(-p_limit <= P <= p_limit)`
-    pub p_limit: f32,
-    /// Limit of contribution of I term `(-i_limit <= I <= i_limit)`
-    pub i_limit: f32,
-    /// Limit of contribution of D term `(-d_limit <= D <= d_limit)`
-    pub d_limit: f32,
+extern crate num_traits;
+use num_traits::Float;
 
-    setpoint: Option<f32>,
-    prev_measurement: Option<f32>,
+#[derive(Debug)]
+pub struct Pid<T: Float> {
+    /// Proportional gain.
+    pub kp: T,
+    /// Integral gain.
+    pub ki: T,
+    /// Derivative gain.
+    pub kd: T,
+    /// Limit of contribution of P term: `(-p_limit <= P <= p_limit)`
+    pub p_limit: T,
+    /// Limit of contribution of I term `(-i_limit <= I <= i_limit)`
+    pub i_limit: T,
+    /// Limit of contribution of D term `(-d_limit <= D <= d_limit)`
+    pub d_limit: T,
+
+    setpoint: Option<T>,
+    prev_measurement: Option<T>,
     /// `integral_term = sum[error(t) * ki(t)] (for all t)`
-    integral_term: f32,
+    integral_term: T,
 }
 
 #[derive(Debug)]
-pub struct ControlOutput {
+pub struct ControlOutput<T: Float> {
     /// Contribution of the P term to the output.
-    pub p: f32,
+    pub p: T,
     /// Contribution of the I term to the output.
     /// `i = sum[error(t) * ki(t)] (for all t)`
-    pub i: f32,
+    pub i: T,
     /// Contribution of the D term to the output.
-    pub d: f32,
+    pub d: T,
     /// Output of the PID controller.
-    pub output: f32,
+    pub output: T,
 }
 
-impl Pid {
-    pub fn new(kp: f32, ki: f32, kd: f32, p_limit: f32, i_limit: f32, d_limit: f32) -> Pid {
-        Pid {
+impl<T> Pid<T> where T: Float {
+    pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T) -> Self {
+        Self {
             kp,
             ki,
             kd,
@@ -45,28 +48,28 @@ impl Pid {
             d_limit,
             setpoint: None,
             prev_measurement: None,
-            integral_term: 0.0
+            integral_term: T::zero(),
         }
     }
 
     /// Sets the desired setpoint.
     ///
     /// Must be called before the first invocation to `next_control_output()`.
-    pub fn update_setpoint(&mut self, setpoint: f32) {
+    pub fn update_setpoint(&mut self, setpoint: T) {
         self.setpoint = Some(setpoint);
     }
 
     /// Resets the integral term back to zero. This may drastically change the
     /// control output.
     pub fn reset_integral_term(&mut self) {
-        self.integral_term = 0.0;
+        self.integral_term = T::zero();
     }
 
     /// Given a new measurement, calculates the next control output.
     ///
     /// # Panics
     /// If a setpoint has not been set via `update_setpoint()`.
-    pub fn next_control_output(&mut self, measurement: f32) -> ControlOutput {
+    pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
         if self.setpoint.is_none() {
             panic!("No set point specified.");
         }
@@ -80,7 +83,7 @@ impl Pid {
         // just the error (no ki), because we support ki changing dynamically,
         // we store the entire term so that we don't need to remember previous
         // ki values.
-        self.integral_term += error * self.ki;
+        self.integral_term = self.integral_term + error * self.ki;
         // Mitigate integral windup: Don't want to keep building up error
         // beyond what i_limit will allow.
         self.integral_term = self.i_limit.min(self.integral_term.abs()) * self.integral_term.signum();
@@ -89,10 +92,10 @@ impl Pid {
         // rather than the derivative of the error.
         let d_unbounded = -match self.prev_measurement.as_ref() {
             Some(prev_measurement) => {
-                measurement - prev_measurement
+                measurement - *prev_measurement
             },
             None => {
-                0.0
+                T::zero()
             }
         } * self.kd;
         self.prev_measurement = Some(measurement);
@@ -198,4 +201,17 @@ mod tests {
         assert_eq!(out.d, 1.0);  // -(1.0 * -1.0)
         assert_eq!(out.output, 2.4);
     }
+
+    #[test]
+    fn f32_and_f64() {
+        let mut pid32 = Pid::new(2.0f32, 0.0, 0.0, 100.0, 100.0, 100.0);
+        pid32.update_setpoint(10.0);
+
+        let mut pid64 = Pid::new(2.0f64, 0.0, 0.0, 100.0, 100.0, 100.0);
+        pid64.update_setpoint(10.0);
+
+        assert_eq!(pid32.next_control_output(0.0).output, pid64.next_control_output(0.0).output as f32);
+        assert_eq!(pid32.next_control_output(0.0).output as f64, pid64.next_control_output(0.0).output);
+    }
+
 }

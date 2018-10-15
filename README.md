@@ -20,6 +20,7 @@ A proportional-integral-derivative (PID) controller.
 * On-the-fly changes to `kp`/`ki`/`kd`.
   * Mitigation of output jumps when changing `ki` by storing the integration of
     `e(t) * ki(t)` rather than only `e(t)`.
+* Generic float type parameter to support `f32` or `f64`.
 
 ## Assumptions
 
@@ -30,6 +31,5 @@ A proportional-integral-derivative (PID) controller.
 ## Todo
 
 - [ ] Three-term output limit: `MAX(p + i + d, global_limit)`.
-- [ ] Support `f64` via generic type parameters.
 - [ ] Helper for (auto-)tuning by detecting frequency & amplitude of
       oscillations.
