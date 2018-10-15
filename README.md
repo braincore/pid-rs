@@ -24,7 +24,6 @@ A proportional-integral-derivative (PID) controller.
 
 ## Assumptions
 
-* All calculations use `f32`.
 * Measurements occur at equal spacing. (`t(i) = t(i-1) + C`)
 * Output limits per term are symmetric around 0 (`-limit <= term <= limit`).
 
