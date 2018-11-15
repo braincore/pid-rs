@@ -62,6 +62,11 @@ where
         self.setpoint = Some(setpoint);
     }
 
+    /// Returns the current setpoint.
+    pub fn get_setpoint(&mut self) -> Option<T> {
+        self.setpoint
+    }
+
     /// Resets the integral term back to zero. This may drastically change the
     /// control output.
     pub fn reset_integral_term(&mut self) {
@@ -117,7 +122,9 @@ mod tests {
     #[test]
     fn proportional() {
         let mut pid = Pid::new(2.0, 0.0, 0.0, 100.0, 100.0, 100.0);
+        assert_eq!(pid.get_setpoint(), None);
         pid.update_setpoint(10.0);
+        assert_eq!(pid.get_setpoint(), Some(10.0));
 
         // Test simple proportional
         assert_eq!(pid.next_control_output(0.0).output, 20.0);
