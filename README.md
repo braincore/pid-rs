@@ -21,6 +21,7 @@ A proportional-integral-derivative (PID) controller.
   * Mitigation of output jumps when changing `ki` by storing the integration of
     `e(t) * ki(t)` rather than only `e(t)`.
 * Generic float type parameter to support `f32` or `f64`.
+* Support for `no_std` environments, such as embedded systems.
 
 ## Assumptions
 
