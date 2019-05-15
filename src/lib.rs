@@ -1,10 +1,10 @@
 //! A proportional-integral-derivative (PID) controller.
-
+#![no_std]
 extern crate num_traits;
-use num_traits::Float;
+use num_traits::float::FloatCore;
 
 #[derive(Debug)]
-pub struct Pid<T: Float> {
+pub struct Pid<T: FloatCore> {
     /// Proportional gain.
     pub kp: T,
     /// Integral gain.
@@ -25,7 +25,7 @@ pub struct Pid<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct ControlOutput<T: Float> {
+pub struct ControlOutput<T: FloatCore> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -39,7 +39,7 @@ pub struct ControlOutput<T: Float> {
 
 impl<T> Pid<T>
 where
-    T: Float,
+    T: FloatCore,
 {
     pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T) -> Self {
         Self {
