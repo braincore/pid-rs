@@ -23,6 +23,52 @@ A proportional-integral-derivative (PID) controller.
 * Generic float type parameter to support `f32` or `f64`.
 * Support for `no_std` environments, such as embedded systems.
 
+## Example
+
+```rust
+extern crate pid;
+use pid::Pid;
+
+fn main() {
+    // Set only kp (proportional)
+    let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0);
+    // Set our target
+    pid.update_setpoint(15.0);
+    // Fake a measurement of 10.0, which is an error of 5.0.
+    let output = pid.next_control_output(10.0);
+    // Verify that kp * error = 10.0 * 5.0 = 50.0
+    assert_eq!(output.output, 50.0);
+    // Verify that all output was from the proportional term
+    assert_eq!(output.p, 50.0);
+    assert_eq!(output.i, 0.0);
+    assert_eq!(output.d, 0.0);
+    
+    // Verify that the same measurement produces the same output since we
+    // aren't using the stateful derivative & integral terms.
+    let output = pid.next_control_output(10.0);
+    assert_eq!(output.p, 50.0);
+    
+    // Add an integral term
+    pid.ki = 1.0;
+    let output = pid.next_control_output(10.0);
+    assert_eq!(output.p, 50.0);
+    // Verify that the integral term is adding to the output signal.
+    assert_eq!(output.i, 5.0);
+    assert_eq!(output.output, 55.0);
+
+    // Add a derivative term
+    pid.kd = 2.0;
+    let output = pid.next_control_output(15.0);  // Match the desired target
+    // No proportional term since no error
+    assert_eq!(output.p, 0.0);
+    // Integral term stays the same
+    assert_eq!(output.i, 5.0);
+    // Derivative on measurement produces opposing signal
+    assert_eq!(output.d, -10.0);
+    assert_eq!(output.output, -5.0);
+}
+```
+
 ## Assumptions
 
 * Measurements occur at equal spacing. (`t(i) = t(i-1) + C`)
