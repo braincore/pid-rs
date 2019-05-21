@@ -28,6 +28,26 @@ A proportional-integral-derivative (PID) controller.
 * Measurements occur at equal spacing. (`t(i) = t(i-1) + C`)
 * Output limits per term are symmetric around 0 (`-limit <= term <= limit`).
 
+## Formulation
+
+There are several different formulations of PID controllers. This library
+uses the independent form:
+
+![PID independent form](
+https://latex.codecogs.com/gif.latex?C(t)&space;=&space;&space;K_p&space;\cdot&space;e(t)&space;&plus;&space;K_i&space;\cdot&space;\int{e(t)dt}&space;-&space;K_d&space;\cdot&space;\frac{dP(t)}{dt})
+
+where:
+- C(t) = control output, the output to the actuator.
+- P(t) = process variable, the measured value.
+- e(t) = error = S(t) - P(t)
+- S(t) = set point, the desired target for the process variable.
+
+`kp`/`ki`/`kd` can be changed during operation and can therefore also be a
+function of time.
+
+If you're interested in the dependent form, add your own logic that computes
+`kp`/`ki`/`kd` using dead time, time constant, `kc`, or whatever else.
+
 ## Todo
 
 - [ ] Three-term output limit: `MAX(p + i + d, global_limit)`.
