@@ -1,6 +1,6 @@
 [package]
 name = "pid"
-version = "1.2.1"
+version = "1.3.0"
 authors = ["Ken Elkabany <ken@elkabany.com>"]
 license = "MIT"
 description = "A PID controller."
