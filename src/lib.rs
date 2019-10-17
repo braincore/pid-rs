@@ -18,7 +18,7 @@ pub struct Pid<T: FloatCore> {
     /// Limit of contribution of D term `(-d_limit <= D <= d_limit)`
     pub d_limit: T,
 
-    setpoint: Option<T>,
+    pub setpoint: T,
     prev_measurement: Option<T>,
     /// `integral_term = sum[error(t) * ki(t)] (for all t)`
     integral_term: T,
@@ -41,7 +41,7 @@ impl<T> Pid<T>
 where
     T: FloatCore,
 {
-    pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T) -> Self {
+    pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T, setpoint : T) -> Self {
         Self {
             kp,
             ki,
@@ -49,22 +49,10 @@ where
             p_limit,
             i_limit,
             d_limit,
-            setpoint: None,
+            setpoint,
             prev_measurement: None,
             integral_term: T::zero(),
         }
-    }
-
-    /// Sets the desired setpoint.
-    ///
-    /// Must be called before the first invocation to `next_control_output()`.
-    pub fn update_setpoint(&mut self, setpoint: T) {
-        self.setpoint = Some(setpoint);
-    }
-
-    /// Returns the current setpoint.
-    pub fn get_setpoint(&mut self) -> Option<T> {
-        self.setpoint
     }
 
     /// Resets the integral term back to zero. This may drastically change the
@@ -78,10 +66,7 @@ where
     /// # Panics
     /// If a setpoint has not been set via `update_setpoint()`.
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
-        if self.setpoint.is_none() {
-            panic!("No set point specified.");
-        }
-        let error = self.setpoint.unwrap() - measurement;
+        let error = self.setpoint - measurement;
 
         let p_unbounded = error * self.kp;
         let p = self.p_limit.min(p_unbounded.abs()) * p_unbounded.signum();
@@ -121,10 +106,8 @@ mod tests {
 
     #[test]
     fn proportional() {
-        let mut pid = Pid::new(2.0, 0.0, 0.0, 100.0, 100.0, 100.0);
-        assert_eq!(pid.get_setpoint(), None);
-        pid.update_setpoint(10.0);
-        assert_eq!(pid.get_setpoint(), Some(10.0));
+        let mut pid = Pid::new(2.0, 0.0, 0.0, 100.0, 100.0, 100.0, 10.0);
+        assert_eq!(pid.setpoint, 10.0);
 
         // Test simple proportional
         assert_eq!(pid.next_control_output(0.0).output, 20.0);
@@ -136,8 +119,7 @@ mod tests {
 
     #[test]
     fn derivative() {
-        let mut pid = Pid::new(0.0, 0.0, 2.0, 100.0, 100.0, 100.0);
-        pid.update_setpoint(10.0);
+        let mut pid = Pid::new(0.0, 0.0, 2.0, 100.0, 100.0, 100.0, 10.0);
 
         // Test that there's no derivative since it's the first measurement
         assert_eq!(pid.next_control_output(0.0).output, 0.0);
@@ -152,8 +134,7 @@ mod tests {
 
     #[test]
     fn integral() {
-        let mut pid = Pid::new(0.0, 2.0, 0.0, 100.0, 100.0, 100.0);
-        pid.update_setpoint(10.0);
+        let mut pid = Pid::new(0.0, 2.0, 0.0, 100.0, 100.0, 100.0, 10.0);
 
         // Test basic integration
         assert_eq!(pid.next_control_output(0.0).output, 20.0);
@@ -167,8 +148,7 @@ mod tests {
         assert_eq!(pid.next_control_output(15.0).output, 40.0);
 
         // Test that error integral accumulates negative values
-        let mut pid2 = Pid::new(0.0, 2.0, 0.0, 100.0, 100.0, 100.0);
-        pid2.update_setpoint(-10.0);
+        let mut pid2 = Pid::new(0.0, 2.0, 0.0, 100.0, 100.0, 100.0, -10.0);
         assert_eq!(pid2.next_control_output(0.0).output, -20.0);
         assert_eq!(pid2.next_control_output(0.0).output, -40.0);
 
@@ -180,8 +160,7 @@ mod tests {
 
     #[test]
     fn pid() {
-        let mut pid = Pid::new(1.0, 0.1, 1.0, 100.0, 100.0, 100.0);
-        pid.update_setpoint(10.0);
+        let mut pid = Pid::new(1.0, 0.1, 1.0, 100.0, 100.0, 100.0, 10.0);
 
         let out = pid.next_control_output(0.0);
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
@@ -210,11 +189,9 @@ mod tests {
 
     #[test]
     fn f32_and_f64() {
-        let mut pid32 = Pid::new(2.0f32, 0.0, 0.0, 100.0, 100.0, 100.0);
-        pid32.update_setpoint(10.0);
+        let mut pid32 = Pid::new(2.0f32, 0.0, 0.0, 100.0, 100.0, 100.0, 10.0);
 
-        let mut pid64 = Pid::new(2.0f64, 0.0, 0.0, 100.0, 100.0, 100.0);
-        pid64.update_setpoint(10.0);
+        let mut pid64 = Pid::new(2.0f64, 0.0, 0.0, 100.0, 100.0, 100.0, 10.0);
 
         assert_eq!(
             pid32.next_control_output(0.0).output,
