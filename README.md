@@ -17,7 +17,7 @@ A proportional-integral-derivative (PID) controller.
 * Mitigation of integral windup using integral term limit.
 * Mitigation of derivative kick by using the derivative of the measurement
   rather than the derivative of the error.
-* On-the-fly changes to `kp`/`ki`/`kd`.
+* On-the-fly changes to `setpoint`/`kp`/`ki`/`kd`.
   * Mitigation of output jumps when changing `ki` by storing the integration of
     `e(t) * ki(t)` rather than only `e(t)`.
 * Generic float type parameter to support `f32` or `f64`.
@@ -30,10 +30,9 @@ extern crate pid;
 use pid::Pid;
 
 fn main() {
-    // Set only kp (proportional)
-    let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0);
-    // Set our target
-    pid.update_setpoint(15.0);
+    // Set only kp (proportional) to 10 with a limit of 100 from the
+    // proportional term. The setpoint is 15.
+    let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0, 15.0);
     // Fake a measurement of 10.0, which is an error of 5.0.
     let output = pid.next_control_output(10.0);
     // Verify that kp * error = 10.0 * 5.0 = 50.0

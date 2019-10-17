@@ -41,7 +41,7 @@ impl<T> Pid<T>
 where
     T: FloatCore,
 {
-    pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T, setpoint : T) -> Self {
+    pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T, setpoint: T) -> Self {
         Self {
             kp,
             ki,
