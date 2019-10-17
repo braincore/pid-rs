@@ -17,6 +17,8 @@ pub struct Pid<T: FloatCore> {
     pub i_limit: T,
     /// Limit of contribution of D term `(-d_limit <= D <= d_limit)`
     pub d_limit: T,
+    /// Limit of the sum of PID terms `(-limit <= P + I + D <+ limit)`
+    pub limit : T,
 
     pub setpoint: T,
     prev_measurement: Option<T>,
@@ -50,6 +52,7 @@ where
             p_limit : inf,
             i_limit : inf,
             d_limit : inf,
+            limit : inf,
             setpoint,
             prev_measurement: None,
             integral_term: T::zero(),
@@ -89,11 +92,14 @@ where
         self.prev_measurement = Some(measurement);
         let d = self.d_limit.min(d_unbounded.abs()) * d_unbounded.signum();
 
+        let output_unbounded = p + self.integral_term + d;
+        let output = self.limit.min(output_unbounded.abs()) * output_unbounded.signum();
+
         ControlOutput {
             p,
             i: self.integral_term,
             d,
-            output: (p + self.integral_term + d),
+            output: output
         }
     }
 }
