@@ -18,7 +18,7 @@ pub struct Pid<T: FloatCore> {
     /// Limit of contribution of D term `(-d_limit <= D <= d_limit)`
     pub d_limit: T,
     /// Limit of the sum of PID terms `(-limit <= P + I + D <+ limit)`
-    pub limit : T,
+    pub limit: T,
 
     pub setpoint: T,
     prev_measurement: Option<T>,
@@ -49,10 +49,10 @@ where
             kp,
             ki,
             kd,
-            p_limit : inf,
-            i_limit : inf,
-            d_limit : inf,
-            limit : inf,
+            p_limit: inf,
+            i_limit: inf,
+            d_limit: inf,
+            limit: inf,
             setpoint,
             prev_measurement: None,
             integral_term: T::zero(),
@@ -99,7 +99,7 @@ where
             p,
             i: self.integral_term,
             d,
-            output: output
+            output: output,
         }
     }
 }
@@ -206,5 +206,4 @@ mod tests {
             pid64.next_control_output(0.0).output
         );
     }
-
 }
