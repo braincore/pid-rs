@@ -2,8 +2,11 @@
 #![no_std]
 
 use num_traits::float::FloatCore;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Pid<T: FloatCore> {
     /// Proportional gain.
     pub kp: T,
