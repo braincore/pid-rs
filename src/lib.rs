@@ -3,7 +3,7 @@
 extern crate num_traits;
 use num_traits::float::FloatCore;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Pid<T: FloatCore> {
     /// Proportional gain.
     pub kp: T,
