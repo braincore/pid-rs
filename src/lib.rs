@@ -1,6 +1,6 @@
 //! A proportional-integral-derivative (PID) controller.
 #![no_std]
-extern crate num_traits;
+
 use num_traits::float::FloatCore;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
