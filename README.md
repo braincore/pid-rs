@@ -22,6 +22,9 @@ A proportional-integral-derivative (PID) controller.
     `e(t) * ki(t)` rather than only `e(t)`.
 * Generic float type parameter to support `f32` or `f64`.
 * Support for `no_std` environments, such as embedded systems.
+* Optional support for [Serde](https://crates.io/crates/serde). Enable the
+  `serde` Cargo feature, if you need `Pid` to implement
+  `Serialize`/`Deserialize`.
 
 ## Example
 
