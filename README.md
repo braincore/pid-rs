@@ -33,8 +33,8 @@ extern crate pid;
 use pid::Pid;
 
 fn main() {
-    // Set only kp (proportional) to 10 with a limit of 100 from the
-    // proportional term. The setpoint is 15.
+    // Set only kp (proportional) to 10. The setpoint is 15.
+    // Set limits for P, I, and D to 100 each.
     let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0, 15.0);
     // Fake a measurement of 10.0, which is an error of 5.0.
     let output = pid.next_control_output(10.0);
@@ -90,8 +90,8 @@ where:
 - e(t) = error = S(t) - P(t)
 - S(t) = set point, the desired target for the process variable.
 
-`kp`/`ki`/`kd` can be changed during operation and can therefore also be a
-function of time.
+`kp`/`ki`/`kd` can be changed during operation and can therefore be a function
+of time.
 
 If you're interested in the dependent form, add your own logic that computes
 `kp`/`ki`/`kd` using dead time, time constant, `kc`, or whatever else.
