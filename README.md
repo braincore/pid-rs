@@ -14,6 +14,7 @@ A proportional-integral-derivative (PID) controller.
 * Visibility into individual contribution of P, I, and D terms which often
   need to be logged for later analysis and parameter tuning.
 * Output limits on a per term basis.
+* Three-term control output limit.
 * Mitigation of integral windup using integral term limit.
 * Mitigation of derivative kick by using the derivative of the measurement
   rather than the derivative of the error.
@@ -35,7 +36,7 @@ use pid::Pid;
 fn main() {
     // Set only kp (proportional) to 10. The setpoint is 15.
     // Set limits for P, I, and D to 100 each.
-    let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0, 15.0);
+    let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0, 100.0, 15.0);
     // Fake a measurement of 10.0, which is an error of 5.0.
     let output = pid.next_control_output(10.0);
     // Verify that kp * error = 10.0 * 5.0 = 50.0
@@ -98,6 +99,5 @@ If you're interested in the dependent form, add your own logic that computes
 
 ## Todo
 
-- [ ] Three-term output limit: `MAX(p + i + d, global_limit)`.
 - [ ] Helper for (auto-)tuning by detecting frequency & amplitude of
       oscillations.
