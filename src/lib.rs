@@ -46,7 +46,16 @@ impl<T> Pid<T>
 where
     T: FloatCore,
 {
-    pub fn new(kp: T, ki: T, kd: T, p_limit: T, i_limit: T, d_limit: T, output_limit: T, setpoint: T) -> Self {
+    pub fn new(
+        kp: T,
+        ki: T,
+        kd: T,
+        p_limit: T,
+        i_limit: T,
+        d_limit: T,
+        output_limit: T,
+        setpoint: T,
+    ) -> Self {
         Self {
             kp,
             ki,
@@ -228,5 +237,4 @@ mod tests {
             pid64.next_control_output(0.0).output
         );
     }
-
 }
