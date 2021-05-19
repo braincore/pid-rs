@@ -30,46 +30,42 @@ A proportional-integral-derivative (PID) controller.
 ## Example
 
 ```rust
-extern crate pid;
 use pid::Pid;
 
-fn main() {
-    // Set only kp (proportional) to 10. The setpoint is 15.
-    // Set limits for P, I, and D to 100 each.
-    let mut pid = Pid::new(10.0, 0.0, 0.0, 100.0, 100.0, 100.0, 100.0, 15.0);
-    // Fake a measurement of 10.0, which is an error of 5.0.
-    let output = pid.next_control_output(10.0);
-    // Verify that kp * error = 10.0 * 5.0 = 50.0
-    assert_eq!(output.output, 50.0);
-    // Verify that all output was from the proportional term
-    assert_eq!(output.p, 50.0);
-    assert_eq!(output.i, 0.0);
-    assert_eq!(output.d, 0.0);
-    
-    // Verify that the same measurement produces the same output since we
-    // aren't using the stateful derivative & integral terms.
-    let output = pid.next_control_output(10.0);
-    assert_eq!(output.p, 50.0);
-    
-    // Add an integral term
-    pid.ki = 1.0;
-    let output = pid.next_control_output(10.0);
-    assert_eq!(output.p, 50.0);
-    // Verify that the integral term is adding to the output signal.
-    assert_eq!(output.i, 5.0);
-    assert_eq!(output.output, 55.0);
+// Create a new proportional-only PID controller with a setpoint of 15
+let mut pid = Pid::new(15.0, 100.0);
+pid.p(10.0, 100.0);
 
-    // Add a derivative term
-    pid.kd = 2.0;
-    let output = pid.next_control_output(15.0);  // Match the desired target
-    // No proportional term since no error
-    assert_eq!(output.p, 0.0);
-    // Integral term stays the same
-    assert_eq!(output.i, 5.0);
-    // Derivative on measurement produces opposing signal
-    assert_eq!(output.d, -10.0);
-    assert_eq!(output.output, -5.0);
-}
+// Input a mesurement with an error of 5.0 from our setpoint
+let output = pid.next_control_output(10.0);
+
+// Show that the error is correct by multiplying by our kp
+assert_eq!(output.output, 50.0); // <--
+assert_eq!(output.p, 50.0);
+
+// It won't change on repeat; the controller is proportional-only
+let output = pid.next_control_output(10.0);
+assert_eq!(output.output, 50.0); // <--
+assert_eq!(output.p, 50.0);
+
+// Add a new integral term to the controller and input again
+pid.i(1.0, 100.0);
+let output = pid.next_control_output(10.0);
+
+// Now that the integral makes the controller stateful, it will change
+assert_eq!(output.output, 55.0); // <--
+assert_eq!(output.p, 50.0);
+assert_eq!(output.i, 5.0);
+
+// Add our final derivative term and match our setpoint target
+pid.d(2.0, 100.0);
+let output = pid.next_control_output(15.0);
+
+// The output will now say to go down due to the derivative
+assert_eq!(output.output, -5.0); // <--
+assert_eq!(output.p, 0.0);
+assert_eq!(output.i, 5.0);
+assert_eq!(output.d, -10.0);
 ```
 
 ## Assumptions
