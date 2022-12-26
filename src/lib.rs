@@ -231,6 +231,7 @@ mod tests {
     use crate::ControlOutput;
     use super::Pid;
 
+    /// Proportional-only controller operation and limits
     #[test]
     fn proportional() {
         let mut pid = Pid::new(10.0, 100.0);
@@ -245,6 +246,7 @@ mod tests {
         assert_eq!(pid.next_control_output(0.0).output, 10.0);
     }
 
+    /// Derivative-only controller operation and limits
     #[test]
     fn derivative() {
         let mut pid = Pid::new(10.0, 100.0);
@@ -261,6 +263,7 @@ mod tests {
         assert_eq!(pid.next_control_output(10.0).output, -5.0);
     }
 
+    /// Integral-only controller operation and limits
     #[test]
     fn integral() {
         let mut pid = Pid::new(10.0, 100.0);
@@ -289,6 +292,7 @@ mod tests {
         assert_eq!(pid2.next_control_output(-15.0).output, -40.0);
     }
 
+    /// Checks that a full PID controller's limits work properly through multiple output iterations
     #[test]
     fn output_limit() {
         let mut pid = Pid::new(10.0, 1.0);
