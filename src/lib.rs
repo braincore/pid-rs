@@ -1,9 +1,9 @@
 //! A proportional-integral-derivative (PID) controller library.
-//! 
+//!
 //! See [Pid] for the adjustable controller itself, as well as [ControlOutput] for the outputs and weights which you can use after setting up your controller. Follow the complete example below to setup your first controller!
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```rust
 //! use pid::Pid;
 //!
@@ -49,37 +49,37 @@ use num_traits::float::FloatCore;
 use serde::{Deserialize, Serialize};
 
 /// Adjustable proportional-integral-derivative (PID) controller.
-/// 
+///
 /// # Examples
-/// 
+///
 /// This controller provides a builder pattern interface which allows you to pick-and-choose which PID inputs you'd like to use during operation. Here's what a basic proportional-only controller could look like:
-/// 
+///
 /// ```rust
 /// use pid::Pid;
-/// 
+///
 /// // Create limited controller
 /// let mut p_controller = Pid::new(15.0, 100.0);
 /// p_controller.p(10.0, 100.0);
-/// 
+///
 /// // Get first output
 /// let p_output = p_controller.next_control_output(400.0);
 /// ```
-/// 
+///
 /// This controller would give you set a proportional controller to `10.0` with a target of `15.0` and an output limit of `100.0` per [output](Self::next_control_output) iteration. The same controller with a full PID system built in looks like:
-/// 
+///
 /// ```rust
 /// use pid::Pid;
-/// 
+///
 /// // Create full PID controler
 /// let mut full_controller = Pid::new(15.0, 100.0);
 /// full_controller.p(10.0, 100.0).i(4.5, 100.0).d(0.25, 100.0);
-/// 
+///
 /// // Get first output
 /// let full_output = full_controller.next_control_output(400.0);
 /// ```
-/// 
+///
 /// This [`next_control_output`](Self::next_control_output) method is what's used to input new values into the controller to tell it what the current state of the system is. In the examples above it's only being used once, but realistically this will be a hot method. Please see [ControlOutput] for examples of how to handle these outputs; it's quite straight forward and mirrors the values of this structure in some ways.
-/// 
+///
 /// The last item of note is that these [`p`](Self::p()), [`i`](Self::i()), and [`d`](Self::d()) methods can be used *during* operation which lets you add and/or modify these controller values if need be.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
@@ -112,7 +112,7 @@ pub struct ControlOutput<T: FloatCore> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
-    /// 
+    ///
     /// This integral term is equal to `sum[error(t) * ki(t)] (for all t)`
     pub i: T,
     /// Contribution of the D term to the output.
@@ -126,11 +126,11 @@ where
     T: FloatCore,
 {
     /// Creates a new controller with the target setpoint and the output limit
-    /// 
+    ///
     /// To set your P, I, and D terms into this controller, please use the following builder methods:
-    /// - [Self::p()]: Proportional term setting 
-    /// - [Self::i()]: Integral term setting 
-    /// - [Self::d()]: Derivative term setting 
+    /// - [Self::p()]: Proportional term setting
+    /// - [Self::i()]: Integral term setting
+    /// - [Self::d()]: Derivative term setting
     pub fn new(setpoint: impl Into<T>, output_limit: impl Into<T>) -> Self {
         Self {
             setpoint: setpoint.into(),
@@ -176,7 +176,7 @@ where
     /// Given a new measurement, calculates the next control output.
     ///
     /// # Panics
-    /// 
+    ///
     /// - If a setpoint has not been set via `update_setpoint()`.
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
         let error = self.setpoint - measurement;
@@ -228,8 +228,8 @@ fn apply_limit<T: FloatCore>(limit: T, value: T) -> T {
 
 #[cfg(test)]
 mod tests {
-    use crate::ControlOutput;
     use super::Pid;
+    use crate::ControlOutput;
 
     /// Proportional-only controller operation and limits
     #[test]
