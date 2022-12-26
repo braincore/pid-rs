@@ -1,6 +1,6 @@
 [package]
 name = "pid"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2018"
 authors = ["Ken Elkabany <ken@elkabany.com>"]
 license = "MIT"

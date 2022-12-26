@@ -32,23 +32,40 @@ A proportional-integral-derivative (PID) controller.
 ```rust
 use pid::Pid;
 
-fn main() {
-    // on creation, all values are assumed to be zeroed/none
-    let mut pid = Pid::new(OUTPUT_LIMIT)
-        .p(KP, P_LIMIT)
-        .d(KD, D_LIMIT)
-        .setpoint(SETPOINT);
+// Create a new proportional-only PID controller with a setpoint of 15
+let mut pid = Pid::new(15.0, 100.0);
+pid.p(10.0, 100.0);
 
-    // use it!
-    pid.next_control_output(10.0)
+// Input a mesurement with an error of 5.0 from our setpoint
+let output = pid.next_control_output(10.0);
 
-    // change at any time
-    pid.i(KP, P_LIMIT)
-    pid.setpoint(SETPOINT)
+// Show that the error is correct by multiplying by our kp
+assert_eq!(output.output, 50.0); // <--
+assert_eq!(output.p, 50.0);
 
-    // and output again
-    pid.next_control_output(7.25)
-}
+// It won't change on repeat; the controller is proportional-only
+let output = pid.next_control_output(10.0);
+assert_eq!(output.output, 50.0); // <--
+assert_eq!(output.p, 50.0);
+
+// Add a new integral term to the controller and input again
+pid.i(1.0, 100.0);
+let output = pid.next_control_output(10.0);
+
+// Now that the integral makes the controller stateful, it will change
+assert_eq!(output.output, 55.0); // <--
+assert_eq!(output.p, 50.0);
+assert_eq!(output.i, 5.0);
+
+// Add our final derivative term and match our setpoint target
+pid.d(2.0, 100.0);
+let output = pid.next_control_output(15.0);
+
+// The output will now say to go down due to the derivative
+assert_eq!(output.output, -5.0); // <--
+assert_eq!(output.p, 0.0);
+assert_eq!(output.i, 5.0);
+assert_eq!(output.d, -10.0);
 ```
 
 ## Assumptions

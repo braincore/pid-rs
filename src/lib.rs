@@ -1,50 +1,119 @@
-//! A proportional-integral-derivative (PID) controller.
+//! A proportional-integral-derivative (PID) controller library.
+//! 
+//! See [Pid] for the adjustable controller itself, as well as [ControlOutput] for the outputs and weights which you can use after setting up your controller. Follow the complete example below to setup your first controller!
+//! 
+//! # Example
+//! 
+//! ```rust
+//! use pid::Pid;
+//!
+//! // Create a new proportional-only PID controller with a setpoint of 15
+//! let mut pid = Pid::new(15.0, 100.0);
+//! pid.p(10.0, 100.0);
+//!
+//! // Input a mesurement with an error of 5.0 from our setpoint
+//! let output = pid.next_control_output(10.0);
+//!
+//! // Show that the error is correct by multiplying by our kp
+//! assert_eq!(output.output, 50.0); // <--
+//! assert_eq!(output.p, 50.0);
+//!
+//! // It won't change on repeat; the controller is proportional-only
+//! let output = pid.next_control_output(10.0);
+//! assert_eq!(output.output, 50.0); // <--
+//! assert_eq!(output.p, 50.0);
+//!
+//! // Add a new integral term to the controller and input again
+//! pid.i(1.0, 100.0);
+//! let output = pid.next_control_output(10.0);
+//!
+//! // Now that the integral makes the controller stateful, it will change
+//! assert_eq!(output.output, 55.0); // <--
+//! assert_eq!(output.p, 50.0);
+//! assert_eq!(output.i, 5.0);
+//!
+//! // Add our final derivative term and match our setpoint target
+//! pid.d(2.0, 100.0);
+//! let output = pid.next_control_output(15.0);
+//!
+//! // The output will now say to go down due to the derivative
+//! assert_eq!(output.output, -5.0); // <--
+//! assert_eq!(output.p, 0.0);
+//! assert_eq!(output.i, 5.0);
+//! assert_eq!(output.d, -10.0);
+//! ```
 #![no_std]
 
 use num_traits::float::FloatCore;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+/// Adjustable proportional-integral-derivative (PID) controller.
+/// 
+/// # Examples
+/// 
+/// This controller provides a builder pattern interface which allows you to pick-and-choose which PID inputs you'd like to use during operation. Here's what a basic proportional-only controller could look like:
+/// 
+/// ```rust
+/// use pid::Pid;
+/// 
+/// // Create limited controller
+/// let mut p_controller = Pid::new(15.0, 100.0);
+/// p_controller.p(10.0, 100.0);
+/// 
+/// // Get first output
+/// let p_output = p_controller.next_control_output(400.0);
+/// ```
+/// 
+/// This controller would give you set a proportional controller to `10.0` with a target of `15.0` and an output limit of `100.0` per [output](Self::next_control_output) iteration. The same controller with a full PID system built in looks like:
+/// 
+/// ```rust
+/// use pid::Pid;
+/// 
+/// // Create full PID controler
+/// let mut full_controller = Pid::new(15.0, 100.0);
+/// full_controller.p(10.0, 100.0).i(4.5, 100.0).d(0.25, 100.0);
+/// 
+/// // Get first output
+/// let full_output = full_controller.next_control_output(400.0);
+/// ```
+/// 
+/// This [`next_control_output`](Self::next_control_output) method is what's used to input new values into the controller to tell it what the current state of the system is. In the examples above it's only being used once, but realistically this will be a hot method. Please see [ControlOutput] for examples of how to handle these outputs; it's quite straight forward and mirrors the values of this structure in some ways.
+/// 
+/// The last item of note is that these [`p`](Self::p()), [`i`](Self::i()), and [`d`](Self::d()) methods can be used *during* operation which lets you add and/or modify these controller values if need be.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Pid<T: FloatCore> {
-    /// Ideal setpoint to strive for
+    /// Ideal setpoint to strive for.
     pub setpoint: T,
-
-    /// Proportional gain
-    pub kp: T,
-
-    /// Integral gain
-    pub ki: T,
-
-    /// Derivative gain
-    pub kd: T,
-
-    /// Limiter for the proportional term: `(-p_limit <= P <= p_limit)`
-    pub p_limit: T,
-
-    /// Limiter for the integral term: `(-i_limit <= I <= i_limit)`
-    pub i_limit: T,
-
-    /// Limiter for the derivative term: `(-d_limit <= D <= d_limit)`
-    pub d_limit: T,
-
-    /// Defines overall output filter limit
+    /// Defines the overall output filter limit.
     pub output_limit: T,
-
-    /// Last calculated integral value if [Pid::ki] is used
+    /// Proportional gain.
+    pub kp: T,
+    /// Integral gain.
+    pub ki: T,
+    /// Derivative gain.
+    pub kd: T,
+    /// Limiter for the proportional term: `(-p_limit <= P <= p_limit)`.
+    pub p_limit: T,
+    /// Limiter for the integral term: `(-i_limit <= I <= i_limit)`.
+    pub i_limit: T,
+    /// Limiter for the derivative term: `(-d_limit <= D <= d_limit)`.
+    pub d_limit: T,
+    /// Last calculated integral value if [Pid::ki] is used.
     integral_term: T,
-
-    /// Previously found measurement whilst using the [Pid::next_control_output] method
+    /// Previously found measurement whilst using the [Pid::next_control_output] method.
     prev_measurement: Option<T>,
 }
 
+/// Output of [controller iterations](Pid::next_control_output) with weights
 #[derive(Debug, PartialEq, Eq)]
 pub struct ControlOutput<T: FloatCore> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
-    /// `i = sum[error(t) * ki(t)] (for all t)`
+    /// 
+    /// This integral term is equal to `sum[error(t) * ki(t)] (for all t)`
     pub i: T,
     /// Contribution of the D term to the output.
     pub d: T,
@@ -56,39 +125,49 @@ impl<T> Pid<T>
 where
     T: FloatCore,
 {
-    pub fn new(setpoint: impl Into<T>, limit: impl Into<T>) -> Self {
+    /// Creates a new controller with the target setpoint and the output limit
+    /// 
+    /// To set your P, I, and D terms into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional term setting 
+    /// - [Self::i()]: Integral term setting 
+    /// - [Self::d()]: Derivative term setting 
+    pub fn new(setpoint: impl Into<T>, output_limit: impl Into<T>) -> Self {
         Self {
             setpoint: setpoint.into(),
+            output_limit: output_limit.into(),
             kp: T::zero(),
             ki: T::zero(),
             kd: T::zero(),
             p_limit: T::zero(),
             i_limit: T::zero(),
             d_limit: T::zero(),
-            output_limit: limit.into(),
             integral_term: T::zero(),
             prev_measurement: None,
         }
     }
 
+    /// Sets the [Self::p] term for this controller.
     pub fn p(&mut self, gain: impl Into<T>, limit: impl Into<T>) -> &mut Self {
         self.kp = gain.into();
         self.p_limit = limit.into();
         self
     }
 
+    /// Sets the [Self::i] term for this controller.
     pub fn i(&mut self, gain: impl Into<T>, limit: impl Into<T>) -> &mut Self {
         self.ki = gain.into();
         self.i_limit = limit.into();
         self
     }
 
+    /// Sets the [Self::d] term for this controller.
     pub fn d(&mut self, gain: impl Into<T>, limit: impl Into<T>) -> &mut Self {
         self.kd = gain.into();
         self.d_limit = limit.into();
         self
     }
 
+    /// Sets the [Pid::setpoint] to target for this controller.
     pub fn setpoint(&mut self, setpoint: impl Into<T>) -> &mut Self {
         self.setpoint = setpoint.into();
         self
@@ -97,7 +176,8 @@ where
     /// Given a new measurement, calculates the next control output.
     ///
     /// # Panics
-    /// If a setpoint has not been set via `update_setpoint()`.
+    /// 
+    /// - If a setpoint has not been set via `update_setpoint()`.
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
         let error = self.setpoint - measurement;
 
@@ -149,7 +229,6 @@ fn apply_limit<T: FloatCore>(limit: T, value: T) -> T {
 #[cfg(test)]
 mod tests {
     use crate::ControlOutput;
-
     use super::Pid;
 
     #[test]
@@ -224,6 +303,7 @@ mod tests {
         assert_eq!(out.output, -1.0);
     }
 
+    /// Combined PID operation
     #[test]
     fn pid() {
         let mut pid = Pid::new(10.0, 100.0);
@@ -254,6 +334,7 @@ mod tests {
         assert_eq!(out.output, 2.4);
     }
 
+    /// Full PID operation with mixed f32/f64 checking to make sure they're equal
     #[test]
     fn f32_and_f64() {
         let mut pid32 = Pid::new(10.0f32, 100.0);
@@ -272,6 +353,7 @@ mod tests {
         );
     }
 
+    /// See if the controller can properly target to the setpoint after 2 output iterations
     #[test]
     fn setpoint() {
         let mut pid = Pid::new(10.0, 100.0);
