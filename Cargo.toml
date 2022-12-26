@@ -2,7 +2,7 @@
 name = "pid"
 version = "4.0.0"
 edition = "2018"
-authors = ["Ken Elkabany <ken@elkabany.com>"]
+authors = ["Ken Elkabany <ken@elkabany.com>", "Owez Griffiths <root@ogriffiths.com>"]
 license = "MIT OR Apache-2.0"
 description = "A PID controller."
 repository = "https://github.com/braincore/pid-rs"
