@@ -94,11 +94,11 @@ pub struct Pid<T: FloatCore> {
     pub ki: T,
     /// Derivative gain.
     pub kd: T,
-    /// Limiter for the proportional term: `(-p_limit <= P <= p_limit)`.
+    /// Limiter for the proportional term: `-p_limit <= P <= p_limit`.
     pub p_limit: T,
-    /// Limiter for the integral term: `(-i_limit <= I <= i_limit)`.
+    /// Limiter for the integral term: `-i_limit <= I <= i_limit`.
     pub i_limit: T,
-    /// Limiter for the derivative term: `(-d_limit <= D <= d_limit)`.
+    /// Limiter for the derivative term: `-d_limit <= D <= d_limit`.
     pub d_limit: T,
     /// Last calculated integral value if [Pid::ki] is used.
     integral_term: T,
@@ -107,6 +107,22 @@ pub struct Pid<T: FloatCore> {
 }
 
 /// Output of [controller iterations](Pid::next_control_output) with weights
+///
+/// # Example
+///
+/// This structure is simple to use and features three weights: [p](Self::p), [i](Self::i), and [d](Self::d). These can be used to figure out how much each term from [Pid] contributed to the final [output](Self::output) value which should be taken as the final controller output for this iteration:
+///
+/// ```rust
+/// use pid::{Pid, ControlOutput};
+///
+/// // Setup controller
+/// let mut pid = Pid::new(15.0, 100.0);
+/// pid.p(10.0, 100.0).i(1.0, 100.0).d(2.0, 100.0);
+///
+/// // Input an example value and get a report for an output iteration
+/// let output = pid.next_control_output(26.2456);
+/// println!("P: {}\nI: {}\nD: {}\nFinal Output: {}", output.p, output.i, output.d, output.output);
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct ControlOutput<T: FloatCore> {
     /// Contribution of the P term to the output.
@@ -173,14 +189,17 @@ where
         self
     }
 
-    /// Given a new measurement, calculates the next control output.
+    /// Given a new measurement, calculates the next [control output](ControlOutput).
     ///
     /// # Panics
     ///
     /// - If a setpoint has not been set via `update_setpoint()`.
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
+        // Calculate the error between the ideal setpoint and the current
+        // measurement to compare against
         let error = self.setpoint - measurement;
 
+        // Calculate the proportional term and limit to it's individual limit
         let p_unbounded = error * self.kp;
         let p = apply_limit(self.p_limit, p_unbounded);
 
@@ -190,6 +209,7 @@ where
         // we store the entire term so that we don't need to remember previous
         // ki values.
         self.integral_term = self.integral_term + error * self.ki;
+
         // Mitigate integral windup: Don't want to keep building up error
         // beyond what i_limit will allow.
         self.integral_term = apply_limit(self.i_limit, self.integral_term);
@@ -203,9 +223,12 @@ where
         self.prev_measurement = Some(measurement);
         let d = apply_limit(self.d_limit, d_unbounded);
 
+        // Calculate the final output by adding together the PID terms, then
+        // apply the final defined output limit
         let output = p + self.integral_term + d;
         let output = apply_limit(self.output_limit, output);
 
+        // Return the individual term's contributions and the final output
         ControlOutput {
             p,
             i: self.integral_term,
