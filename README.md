@@ -36,7 +36,7 @@ use pid::Pid;
 let mut pid = Pid::new(15.0, 100.0);
 pid.p(10.0, 100.0);
 
-// Input a mesurement with an error of 5.0 from our setpoint
+// Input a measurement with an error of 5.0 from our setpoint
 let output = pid.next_control_output(10.0);
 
 // Show that the error is correct by multiplying by our kp
