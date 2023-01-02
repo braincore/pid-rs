@@ -44,9 +44,26 @@
 //! ```
 #![no_std]
 
-use num_traits::float::FloatCore;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+/// A trait for any numeric type usable in the PID controller
+///
+/// This trait is automatically implemented for all types that satisfy `PartialOrd + num_traits::Signed + Copy`. This includes all of the signed float types and builtin integer except for [isize]:
+/// - [i8]
+/// - [i16]
+/// - [i32]
+/// - [i64]
+/// - [i128]
+/// - [f32]
+/// - [f64]
+///
+/// As well as any user type that matches the requirements
+pub trait Number: PartialOrd + num_traits::Signed + Copy {}
+
+// Implement `Number` for all types that
+// satisfy `PartialOrd + num_traits::Signed + Copy`.
+impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 
 /// Adjustable proportional-integral-derivative (PID) controller.
 ///
@@ -81,9 +98,13 @@ use serde::{Deserialize, Serialize};
 /// This [`next_control_output`](Self::next_control_output) method is what's used to input new values into the controller to tell it what the current state of the system is. In the examples above it's only being used once, but realistically this will be a hot method. Please see [ControlOutput] for examples of how to handle these outputs; it's quite straight forward and mirrors the values of this structure in some ways.
 ///
 /// The last item of note is that these [`p`](Self::p()), [`i`](Self::i()), and [`d`](Self::d()) methods can be used *during* operation which lets you add and/or modify these controller values if need be.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+///
+/// # Type Warning
+///
+/// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-pub struct Pid<T: FloatCore> {
+pub struct Pid<T: Number> {
     /// Ideal setpoint to strive for.
     pub setpoint: T,
     /// Defines the overall output filter limit.
@@ -124,7 +145,7 @@ pub struct Pid<T: FloatCore> {
 /// println!("P: {}\nI: {}\nD: {}\nFinal Output: {}", output.p, output.i, output.d, output.output);
 /// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct ControlOutput<T: FloatCore> {
+pub struct ControlOutput<T: Number> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -139,7 +160,7 @@ pub struct ControlOutput<T: FloatCore> {
 
 impl<T> Pid<T>
 where
-    T: FloatCore,
+    T: Number,
 {
     /// Creates a new controller with the target setpoint and the output limit
     ///
@@ -245,8 +266,8 @@ where
 }
 
 /// Saturating the input `value` according the absolute `limit` (`-limit <= output <= limit`).
-fn apply_limit<T: FloatCore>(limit: T, value: T) -> T {
-    limit.min(value.abs()) * value.signum()
+fn apply_limit<T: Number>(limit: T, value: T) -> T {
+    num_traits::clamp(value, -limit, limit)
 }
 
 #[cfg(test)]
@@ -361,23 +382,40 @@ mod tests {
         assert_eq!(out.output, 2.4);
     }
 
-    /// Full PID operation with mixed f32/f64 checking to make sure they're equal
+    // NOTE: use for new test in future: /// Full PID operation with mixed float checking to make sure they're equal
+    /// PID operation with zero'd values, checking to see if different floats equal each other
     #[test]
-    fn f32_and_f64() {
-        let mut pid32 = Pid::new(10.0f32, 100.0);
-        pid32.p(0.0, 100.0).i(0.0, 100.0).d(0.0, 100.0);
+    fn floats_zeros() {
+        let mut pid_f32 = Pid::new(10.0f32, 100.0);
+        pid_f32.p(0.0, 100.0).i(0.0, 100.0).d(0.0, 100.0);
 
-        let mut pid64 = Pid::new(10.0, 100.0f64);
-        pid64.p(0.0, 100.0).i(0.0, 100.0).d(0.0, 100.0);
+        let mut pid_f64 = Pid::new(10.0, 100.0f64);
+        pid_f64.p(0.0, 100.0).i(0.0, 100.0).d(0.0, 100.0);
 
-        assert_eq!(
-            pid32.next_control_output(0.0).output,
-            pid64.next_control_output(0.0).output as f32
-        );
-        assert_eq!(
-            pid32.next_control_output(0.0).output as f64,
-            pid64.next_control_output(0.0).output
-        );
+        for _ in 0..5 {
+            assert_eq!(
+                pid_f32.next_control_output(0.0).output,
+                pid_f64.next_control_output(0.0).output as f32
+            );
+        }
+    }
+
+    // NOTE: use for new test in future: /// Full PID operation with mixed signed integer checking to make sure they're equal
+    /// PID operation with zero'd values, checking to see if different floats equal each other
+    #[test]
+    fn signed_integers_zeros() {
+        let mut pid_i8 = Pid::new(10i8, 100);
+        pid_i8.p(0, 100).i(0, 100).d(0, 100);
+
+        let mut pid_i32 = Pid::new(10i32, 100);
+        pid_i32.p(0, 100).i(0, 100).d(0, 100);
+
+        for _ in 0..5 {
+            assert_eq!(
+                pid_i32.next_control_output(0).output,
+                pid_i8.next_control_output(0i8).output as i32
+            );
+        }
     }
 
     /// See if the controller can properly target to the setpoint after 2 output iterations
