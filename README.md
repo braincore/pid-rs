@@ -78,8 +78,9 @@ assert_eq!(output.d, -10.0);
 There are several different formulations of PID controllers. This library
 uses the independent form:
 
-![PID independent form](
-https://latex.codecogs.com/gif.latex?C(t)&space;=&space;&space;K_p&space;\cdot&space;e(t)&space;&plus;&space;K_i&space;\cdot&space;\int{e(t)dt}&space;-&space;K_d&space;\cdot&space;\frac{dP(t)}{dt})
+```math
+C(t) = K_p \cdot e(t) + K_i \cdot \int{e(t)dt} - K_d \cdot \frac{dP(t)}{dt}
+```
 
 where:
 - C(t) = control output, the output to the actuator.
