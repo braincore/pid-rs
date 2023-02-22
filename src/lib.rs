@@ -265,9 +265,9 @@ where
     }
 }
 
-/// Saturating the input `value` according the absolute `limit` (`-limit <= output <= limit`).
+/// Saturating the input `value` according the absolute `limit` (`-abs(limit) <= output <= abs(limit)`).
 fn apply_limit<T: Number>(limit: T, value: T) -> T {
-    num_traits::clamp(value, -limit, limit)
+    num_traits::clamp(value, -limit.abs(), limit.abs())
 }
 
 #[cfg(test)]
@@ -441,5 +441,18 @@ mod tests {
                 output: 1.0
             }
         );
+    }
+
+    /// Make sure negative limits don't break the controller
+    #[test]
+    fn negative_limits() {
+        let mut pid = Pid::new(10.0f32, -10.0);
+        pid.p(1.0, -50.0).i(1.0, -50.0).d(1.0, -50.0);
+
+        let out = pid.next_control_output(0.0);
+        assert_eq!(out.p, 10.0);
+        assert_eq!(out.i, 10.0);
+        assert_eq!(out.d, 0.0);
+        assert_eq!(out.output, 10.0);
     }
 }
