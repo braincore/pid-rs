@@ -115,12 +115,16 @@ pub struct Pid<T: Number> {
     pub ki: T,
     /// Derivative gain.
     pub kd: T,
+    /// Feedforward gain.
+    pub ff: T,
     /// Limiter for the proportional term: `-p_limit <= P <= p_limit`.
     pub p_limit: T,
     /// Limiter for the integral term: `-i_limit <= I <= i_limit`.
     pub i_limit: T,
     /// Limiter for the derivative term: `-d_limit <= D <= d_limit`.
     pub d_limit: T,
+    /// Limiter for the feedforward term: `-ff_limit <= FF <= ff_limit`.
+    pub ff_limit: T,
     /// Last calculated integral value if [Pid::ki] is used.
     integral_term: T,
     /// Previously found measurement whilst using the [Pid::next_control_output] method.
@@ -154,6 +158,8 @@ pub struct ControlOutput<T: Number> {
     pub i: T,
     /// Contribution of the D term to the output.
     pub d: T,
+    /// Contribution of the feedforward term to the output.
+    pub ff: T,
     /// Output of the PID controller.
     pub output: T,
 }
@@ -175,9 +181,11 @@ where
             kp: T::zero(),
             ki: T::zero(),
             kd: T::zero(),
+            ff: T::zero(),
             p_limit: T::zero(),
             i_limit: T::zero(),
             d_limit: T::zero(),
+            ff_limit: T::zero(),
             integral_term: T::zero(),
             prev_measurement: None,
         }
@@ -201,6 +209,13 @@ where
     pub fn d(&mut self, gain: impl Into<T>, limit: impl Into<T>) -> &mut Self {
         self.kd = gain.into();
         self.d_limit = limit.into();
+        self
+    }
+
+    /// Sets the [Self::ff] term for this controller.
+    pub fn ff(&mut self, gain: impl Into<T>, limit: impl Into<T>) -> &mut Self {
+        self.ff = gain.into();
+        self.ff_limit = limit.into();
         self
     }
 
@@ -244,9 +259,13 @@ where
         self.prev_measurement = Some(measurement);
         let d = apply_limit(self.d_limit, d_unbounded);
 
+        // Calculate the feedforward term and limit to it's individual limit
+        let ff_unbounded = self.setpoint * self.ff;
+        let ff = apply_limit(self.ff_limit, ff_unbounded);
+
         // Calculate the final output by adding together the PID terms, then
         // apply the final defined output limit
-        let output = p + self.integral_term + d;
+        let output = p + self.integral_term + d + ff;
         let output = apply_limit(self.output_limit, output);
 
         // Return the individual term's contributions and the final output
@@ -254,7 +273,8 @@ where
             p,
             i: self.integral_term,
             d,
-            output: output,
+            ff,
+            output,
         }
     }
 
@@ -336,6 +356,23 @@ mod tests {
         assert_eq!(pid2.next_control_output(-15.0).output, -40.0);
     }
 
+    /// Feedforward-only controller operation and limits
+    #[test]
+    fn feedforward() {
+        let mut pid = Pid::new(10.0, 100.0);
+        pid.p(0.0, 100.0).i(0.0, 100.0).d(0.0, 100.0).ff(2.0, 100.0);
+        assert_eq!(pid.setpoint, 10.0);
+
+        // Test simple feedforward
+        assert_eq!(pid.next_control_output(0.0).output, 20.0);
+        assert_eq!(pid.next_control_output(10.0).output, 20.0);
+        assert_eq!(pid.next_control_output(20.0).output, 20.0);
+
+        // Test feedforward limit
+        pid.ff_limit = 10.0;
+        assert_eq!(pid.next_control_output(0.0).output, 10.0);
+    }
+
     /// Checks that a full PID controller's limits work properly through multiple output iterations
     #[test]
     fn output_limit() {
@@ -355,31 +392,35 @@ mod tests {
     #[test]
     fn pid() {
         let mut pid = Pid::new(10.0, 100.0);
-        pid.p(1.0, 100.0).i(0.1, 100.0).d(1.0, 100.0);
+        pid.p(1.0, 100.0).i(0.1, 100.0).d(1.0, 100.0).ff(2.0, 100.0);
 
         let out = pid.next_control_output(0.0);
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.i, 1.0); // 0.1 * 10.0
         assert_eq!(out.d, 0.0); // -(1.0 * 0.0)
-        assert_eq!(out.output, 11.0);
+        assert_eq!(out.ff, 20.0); // 2.0 * 10.0
+        assert_eq!(out.output, 31.0);
 
         let out = pid.next_control_output(5.0);
         assert_eq!(out.p, 5.0); // 1.0 * 5.0
         assert_eq!(out.i, 1.5); // 0.1 * (10.0 + 5.0)
         assert_eq!(out.d, -5.0); // -(1.0 * 5.0)
-        assert_eq!(out.output, 1.5);
+        assert_eq!(out.ff, 20.0); // 2.0 * 10.0
+        assert_eq!(out.output, 21.5);
 
         let out = pid.next_control_output(11.0);
         assert_eq!(out.p, -1.0); // 1.0 * -1.0
         assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1)
         assert_eq!(out.d, -6.0); // -(1.0 * 6.0)
-        assert_eq!(out.output, -5.6);
+        assert_eq!(out.ff, 20.0); // 2.0 * 10.0
+        assert_eq!(out.output, 14.4);
 
         let out = pid.next_control_output(10.0);
         assert_eq!(out.p, 0.0); // 1.0 * 0.0
         assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1.0 + 0.0)
         assert_eq!(out.d, 1.0); // -(1.0 * -1.0)
-        assert_eq!(out.output, 2.4);
+        assert_eq!(out.ff, 20.0); // 2.0 * 10.0
+        assert_eq!(out.output, 22.4);
     }
 
     // NOTE: use for new test in future: /// Full PID operation with mixed float checking to make sure they're equal
@@ -438,6 +479,7 @@ mod tests {
                 p: 0.0,
                 i: 1.0,
                 d: -0.0,
+                ff: 0.0,
                 output: 1.0
             }
         );
