@@ -5,27 +5,27 @@
 //! # Example
 //!
 //! ```rust
-//! use pid::Pid;
+//! use pid::{Pid, RegularSignedError};
 //!
 //! // Create a new proportional-only PID controller with a setpoint of 15
-//! let mut pid = Pid::new(15.0, 100.0);
+//! let mut pid: Pid<f32, f32> = Pid::new(15.0, 100.0);
 //! pid.p(10.0, 100.0);
 //!
 //! // Input a measurement with an error of 5.0 from our setpoint
-//! let output = pid.next_control_output(10.0);
+//! let output = pid.next_control_output::<RegularSignedError>(10.0);
 //!
 //! // Show that the error is correct by multiplying by our kp
 //! assert_eq!(output.output, 50.0); // <--
 //! assert_eq!(output.p, 50.0);
 //!
 //! // It won't change on repeat; the controller is proportional-only
-//! let output = pid.next_control_output(10.0);
+//! let output = pid.next_control_output::<RegularSignedError>(10.0);
 //! assert_eq!(output.output, 50.0); // <--
 //! assert_eq!(output.p, 50.0);
 //!
 //! // Add a new integral term to the controller and input again
 //! pid.i(1.0, 100.0);
-//! let output = pid.next_control_output(10.0);
+//! let output = pid.next_control_output::<RegularSignedError>(10.0);
 //!
 //! // Now that the integral makes the controller stateful, it will change
 //! assert_eq!(output.output, 55.0); // <--
@@ -34,7 +34,7 @@
 //!
 //! // Add our final derivative term and match our setpoint target
 //! pid.d(2.0, 100.0);
-//! let output = pid.next_control_output(15.0);
+//! let output = pid.next_control_output::<RegularSignedError>(15.0);
 //!
 //! // The output will now say to go down due to the derivative
 //! assert_eq!(output.output, -5.0); // <--
@@ -72,27 +72,27 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 /// This controller provides a builder pattern interface which allows you to pick-and-choose which PID inputs you'd like to use during operation. Here's what a basic proportional-only controller could look like:
 ///
 /// ```rust
-/// use pid::Pid;
+/// use pid::{Pid, RegularSignedError};
 ///
 /// // Create limited controller
-/// let mut p_controller = Pid::new(15.0, 100.0);
+/// let mut p_controller: Pid<f32, f32> = Pid::new(15.0, 100.0);
 /// p_controller.p(10.0, 100.0);
 ///
 /// // Get first output
-/// let p_output = p_controller.next_control_output(400.0);
+/// let p_output = p_controller.next_control_output::<RegularSignedError>(400.0);
 /// ```
 ///
 /// This controller would give you set a proportional controller to `10.0` with a target of `15.0` and an output limit of `100.0` per [output](Self::next_control_output) iteration. The same controller with a full PID system built in looks like:
 ///
 /// ```rust
-/// use pid::Pid;
+/// use pid::{Pid, RegularSignedError};
 ///
 /// // Create full PID controller
 /// let mut full_controller = Pid::new(15.0, 100.0);
 /// full_controller.p(10.0, 100.0).i(4.5, 100.0).d(0.25, 100.0);
 ///
 /// // Get first output
-/// let full_output = full_controller.next_control_output(400.0);
+/// let full_output = full_controller.next_control_output::<RegularSignedError>(400.0);
 /// ```
 ///
 /// This [`next_control_output`](Self::next_control_output) method is what's used to input new values into the controller to tell it what the current state of the system is. In the examples above it's only being used once, but realistically this will be a hot method. Please see [ControlOutput] for examples of how to handle these outputs; it's quite straight forward and mirrors the values of this structure in some ways.
@@ -104,9 +104,9 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-pub struct Pid<T: Number> {
+pub struct Pid<K, T: Number> {
     /// Ideal setpoint to strive for.
-    pub setpoint: T,
+    pub setpoint: K,
     /// Defines the overall output filter limit.
     pub output_limit: T,
     /// Proportional gain.
@@ -124,7 +124,7 @@ pub struct Pid<T: Number> {
     /// Last calculated integral value if [Pid::ki] is used.
     integral_term: T,
     /// Previously found measurement whilst using the [Pid::next_control_output] method.
-    prev_measurement: Option<T>,
+    prev_measurement: Option<K>,
 }
 
 /// Output of [controller iterations](Pid::next_control_output) with weights
@@ -134,14 +134,14 @@ pub struct Pid<T: Number> {
 /// This structure is simple to use and features three weights: [p](Self::p), [i](Self::i), and [d](Self::d). These can be used to figure out how much each term from [Pid] contributed to the final [output](Self::output) value which should be taken as the final controller output for this iteration:
 ///
 /// ```rust
-/// use pid::{Pid, ControlOutput};
+/// use pid::{Pid, ControlOutput, RegularSignedError};
 ///
 /// // Setup controller
 /// let mut pid = Pid::new(15.0, 100.0);
 /// pid.p(10.0, 100.0).i(1.0, 100.0).d(2.0, 100.0);
 ///
 /// // Input an example value and get a report for an output iteration
-/// let output = pid.next_control_output(26.2456);
+/// let output = pid.next_control_output::<RegularSignedError>(26.2456);
 /// println!("P: {}\nI: {}\nD: {}\nFinal Output: {}", output.p, output.i, output.d, output.output);
 /// ```
 #[derive(Debug, PartialEq, Eq)]
@@ -158,7 +158,41 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-impl<T> Pid<T>
+/// A trait to generalise the notion of `signed_error` between two
+/// measurements.
+///
+/// For example, between displacement measurements of `-10` and `20`
+/// there is a `signed_error` of `-30` which is calculated as `(-10) -
+/// (20)`. However this subtraction does not work for other
+/// measurements, take for example rotation measurements represented
+/// in radians, imagine the `signed_error` between a measurement of
+/// `2*PI` and `4*PI`. Using the subtraction method would give us an
+/// `signed_error` of `-2*PI` which may not be expected if we consider
+/// `2*PI` and `4*PI` to be equivalent and hence expect a
+/// `signed_error` of `0`.
+///
+/// Hence, this trait allows you to implement your own method of
+/// calculating the `signed_error` between two measurements.
+///
+/// A implementation of the regular subtraction method which is
+/// commonly most appropriate is provided via [`RegularSignedError`].
+pub trait SignedError<K, T> {
+    fn signed_error(setpoint: &K, measurement: &K) -> T;
+}
+
+/// An implementation of [`SignedError`] using subtraction between the
+/// two measurements.
+pub struct RegularSignedError;
+impl<T> SignedError<T, T> for RegularSignedError
+where
+    T: Number,
+{
+    fn signed_error(setpoint: &T, measurement: &T) -> T {
+        *setpoint - *measurement
+    }
+}
+
+impl<K, T> Pid<K, T>
 where
     T: Number,
 {
@@ -168,7 +202,7 @@ where
     /// - [Self::p()]: Proportional term setting
     /// - [Self::i()]: Integral term setting
     /// - [Self::d()]: Derivative term setting
-    pub fn new(setpoint: impl Into<T>, output_limit: impl Into<T>) -> Self {
+    pub fn new(setpoint: impl Into<K>, output_limit: impl Into<T>) -> Self {
         Self {
             setpoint: setpoint.into(),
             output_limit: output_limit.into(),
@@ -205,23 +239,28 @@ where
     }
 
     /// Sets the [Pid::setpoint] to target for this controller.
-    pub fn setpoint(&mut self, setpoint: impl Into<T>) -> &mut Self {
+    pub fn setpoint(&mut self, setpoint: impl Into<K>) -> &mut Self {
         self.setpoint = setpoint.into();
         self
     }
 
-    /// Given a new measurement, calculates the next [control output](ControlOutput).
+    /// Given a new measurement and a method of calculating
+    /// `signed_error`, calculates the next [control
+    /// output](ControlOutput).
     ///
     /// # Panics
     ///
     /// - If a setpoint has not been set via `update_setpoint()`.
-    pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
+    pub fn next_control_output<S>(&mut self, measurement: K) -> ControlOutput<T>
+    where
+        S: SignedError<K, T>,
+    {
         // Calculate the error between the ideal setpoint and the current
         // measurement to compare against
-        let error = self.setpoint - measurement;
+        let signed_error = S::signed_error(&self.setpoint, &measurement);
 
         // Calculate the proportional term and limit to it's individual limit
-        let p_unbounded = error * self.kp;
+        let p_unbounded = signed_error * self.kp;
         let p = apply_limit(self.p_limit, p_unbounded);
 
         // Mitigate output jumps when ki(t) != ki(t-1).
@@ -229,7 +268,7 @@ where
         // just the error (no ki), because we support ki changing dynamically,
         // we store the entire term so that we don't need to remember previous
         // ki values.
-        self.integral_term = self.integral_term + error * self.ki;
+        self.integral_term = self.integral_term + signed_error * self.ki;
 
         // Mitigate integral windup: Don't want to keep building up error
         // beyond what i_limit will allow.
@@ -238,7 +277,7 @@ where
         // Mitigate derivative kick: Use the derivative of the measurement
         // rather than the derivative of the error.
         let d_unbounded = -match self.prev_measurement.as_ref() {
-            Some(prev_measurement) => measurement - *prev_measurement,
+            Some(prev_measurement) => S::signed_error(&measurement, prev_measurement),
             None => T::zero(),
         } * self.kd;
         self.prev_measurement = Some(measurement);
@@ -254,7 +293,7 @@ where
             p,
             i: self.integral_term,
             d,
-            output: output,
+            output,
         }
     }
 
@@ -273,7 +312,7 @@ fn apply_limit<T: Number>(limit: T, value: T) -> T {
 #[cfg(test)]
 mod tests {
     use super::Pid;
-    use crate::ControlOutput;
+    use crate::{ControlOutput, RegularSignedError};
 
     /// Proportional-only controller operation and limits
     #[test]
@@ -283,11 +322,17 @@ mod tests {
         assert_eq!(pid.setpoint, 10.0);
 
         // Test simple proportional
-        assert_eq!(pid.next_control_output(0.0).output, 20.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(0.0).output,
+            20.0
+        );
 
         // Test proportional limit
         pid.p_limit = 10.0;
-        assert_eq!(pid.next_control_output(0.0).output, 10.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(0.0).output,
+            10.0
+        );
     }
 
     /// Derivative-only controller operation and limits
@@ -297,14 +342,23 @@ mod tests {
         pid.p(0.0, 100.0).i(0.0, 100.0).d(2.0, 100.0);
 
         // Test that there's no derivative since it's the first measurement
-        assert_eq!(pid.next_control_output(0.0).output, 0.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(0.0).output,
+            0.0
+        );
 
         // Test that there's now a derivative
-        assert_eq!(pid.next_control_output(5.0).output, -10.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(5.0).output,
+            -10.0
+        );
 
         // Test derivative limit
         pid.d_limit = 5.0;
-        assert_eq!(pid.next_control_output(10.0).output, -5.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(10.0).output,
+            -5.0
+        );
     }
 
     /// Integral-only controller operation and limits
@@ -314,39 +368,66 @@ mod tests {
         pid.p(0.0, 100.0).i(2.0, 100.0).d(0.0, 100.0);
 
         // Test basic integration
-        assert_eq!(pid.next_control_output(0.0).output, 20.0);
-        assert_eq!(pid.next_control_output(0.0).output, 40.0);
-        assert_eq!(pid.next_control_output(5.0).output, 50.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(0.0).output,
+            20.0
+        );
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(0.0).output,
+            40.0
+        );
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(5.0).output,
+            50.0
+        );
 
         // Test limit
         pid.i_limit = 50.0;
-        assert_eq!(pid.next_control_output(5.0).output, 50.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(5.0).output,
+            50.0
+        );
         // Test that limit doesn't impede reversal of error integral
-        assert_eq!(pid.next_control_output(15.0).output, 40.0);
+        assert_eq!(
+            pid.next_control_output::<RegularSignedError>(15.0).output,
+            40.0
+        );
 
         // Test that error integral accumulates negative values
         let mut pid2 = Pid::new(-10.0, 100.0);
         pid2.p(0.0, 100.0).i(2.0, 100.0).d(0.0, 100.0);
-        assert_eq!(pid2.next_control_output(0.0).output, -20.0);
-        assert_eq!(pid2.next_control_output(0.0).output, -40.0);
+        assert_eq!(
+            pid2.next_control_output::<RegularSignedError>(0.0).output,
+            -20.0
+        );
+        assert_eq!(
+            pid2.next_control_output::<RegularSignedError>(0.0).output,
+            -40.0
+        );
 
         pid2.i_limit = 50.0;
-        assert_eq!(pid2.next_control_output(-5.0).output, -50.0);
+        assert_eq!(
+            pid2.next_control_output::<RegularSignedError>(-5.0).output,
+            -50.0
+        );
         // Test that limit doesn't impede reversal of error integral
-        assert_eq!(pid2.next_control_output(-15.0).output, -40.0);
+        assert_eq!(
+            pid2.next_control_output::<RegularSignedError>(-15.0).output,
+            -40.0
+        );
     }
 
     /// Checks that a full PID controller's limits work properly through multiple output iterations
     #[test]
     fn output_limit() {
-        let mut pid = Pid::new(10.0, 1.0);
+        let mut pid: Pid<f64, f64> = Pid::new(10.0, 1.0);
         pid.p(1.0, 100.0).i(0.0, 100.0).d(0.0, 100.0);
 
-        let out = pid.next_control_output(0.0);
+        let out = pid.next_control_output::<RegularSignedError>(0.0);
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.output, 1.0);
 
-        let out = pid.next_control_output(20.0);
+        let out = pid.next_control_output::<RegularSignedError>(20.0);
         assert_eq!(out.p, -10.0); // 1.0 * (10.0 - 20.0)
         assert_eq!(out.output, -1.0);
     }
@@ -354,28 +435,28 @@ mod tests {
     /// Combined PID operation
     #[test]
     fn pid() {
-        let mut pid = Pid::new(10.0, 100.0);
+        let mut pid: Pid<f64, f64> = Pid::new(10.0, 100.0);
         pid.p(1.0, 100.0).i(0.1, 100.0).d(1.0, 100.0);
 
-        let out = pid.next_control_output(0.0);
+        let out = pid.next_control_output::<RegularSignedError>(0.0);
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.i, 1.0); // 0.1 * 10.0
         assert_eq!(out.d, 0.0); // -(1.0 * 0.0)
         assert_eq!(out.output, 11.0);
 
-        let out = pid.next_control_output(5.0);
+        let out = pid.next_control_output::<RegularSignedError>(5.0);
         assert_eq!(out.p, 5.0); // 1.0 * 5.0
         assert_eq!(out.i, 1.5); // 0.1 * (10.0 + 5.0)
         assert_eq!(out.d, -5.0); // -(1.0 * 5.0)
         assert_eq!(out.output, 1.5);
 
-        let out = pid.next_control_output(11.0);
+        let out = pid.next_control_output::<RegularSignedError>(11.0);
         assert_eq!(out.p, -1.0); // 1.0 * -1.0
         assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1)
         assert_eq!(out.d, -6.0); // -(1.0 * 6.0)
         assert_eq!(out.output, -5.6);
 
-        let out = pid.next_control_output(10.0);
+        let out = pid.next_control_output::<RegularSignedError>(10.0);
         assert_eq!(out.p, 0.0); // 1.0 * 0.0
         assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1.0 + 0.0)
         assert_eq!(out.d, 1.0); // -(1.0 * -1.0)
@@ -394,8 +475,12 @@ mod tests {
 
         for _ in 0..5 {
             assert_eq!(
-                pid_f32.next_control_output(0.0).output,
-                pid_f64.next_control_output(0.0).output as f32
+                pid_f32
+                    .next_control_output::<RegularSignedError>(0.0)
+                    .output,
+                pid_f64
+                    .next_control_output::<RegularSignedError>(0.0)
+                    .output as f32
             );
         }
     }
@@ -412,8 +497,8 @@ mod tests {
 
         for _ in 0..5 {
             assert_eq!(
-                pid_i32.next_control_output(0).output,
-                pid_i8.next_control_output(0i8).output as i32
+                pid_i32.next_control_output::<RegularSignedError>(0).output,
+                pid_i8.next_control_output::<RegularSignedError>(0i8).output as i32
             );
         }
     }
@@ -424,7 +509,7 @@ mod tests {
         let mut pid = Pid::new(10.0, 100.0);
         pid.p(1.0, 100.0).i(0.1, 100.0).d(1.0, 100.0);
 
-        let out = pid.next_control_output(0.0);
+        let out = pid.next_control_output::<RegularSignedError>(0.0);
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.i, 1.0); // 0.1 * 10.0
         assert_eq!(out.d, 0.0); // -(1.0 * 0.0)
@@ -433,7 +518,7 @@ mod tests {
         pid.setpoint(0.0);
 
         assert_eq!(
-            pid.next_control_output(0.0),
+            pid.next_control_output::<RegularSignedError>(0.0),
             ControlOutput {
                 p: 0.0,
                 i: 1.0,
@@ -449,7 +534,7 @@ mod tests {
         let mut pid = Pid::new(10.0f32, -10.0);
         pid.p(1.0, -50.0).i(1.0, -50.0).d(1.0, -50.0);
 
-        let out = pid.next_control_output(0.0);
+        let out = pid.next_control_output::<RegularSignedError>(0.0);
         assert_eq!(out.p, 10.0);
         assert_eq!(out.i, 10.0);
         assert_eq!(out.d, 0.0);
