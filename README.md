@@ -1,7 +1,7 @@
-# PID Controller for Rust [![Latest Version]][crates.io] [![Documentation]][docs.rs] [![Build Status]][travis] 
+# PID Controller for Rust
+[![Latest Version]][crates.io] [![Documentation]][docs.rs] 
 
 [Build Status]: https://api.travis-ci.org/braincore/pid-rs.svg?branch=master
-[travis]: https://travis-ci.org/braincore/pid-rs
 [Latest Version]: https://img.shields.io/crates/v/pid.svg
 [crates.io]: https://crates.io/crates/pid
 [Documentation]: https://docs.rs/pid/badge.svg
@@ -82,7 +82,8 @@ uses the independent form:
 C(t) = K_p \cdot e(t) + K_i \cdot \int{e(t)dt} - K_d \cdot \frac{dP(t)}{dt}
 ```
 
-where:
+Where:
+
 - C(t) = control output, the output to the actuator.
 - P(t) = process variable, the measured value.
 - e(t) = error = S(t) - P(t)
