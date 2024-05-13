@@ -263,6 +263,14 @@ where
     pub fn reset_integral_term(&mut self) {
         self.integral_term = T::zero();
     }
+
+    /// Set integral term to a custom value. This might be useful to restore the
+    /// pid controller to a previous state after an interruption or crash.
+    pub fn set_integral_term(&mut self, integral_term: impl Into<T>) -> &mut Self {
+        self.integral_term = integral_term.into();
+        self.integral_term = apply_limit(self.i_limit, self.integral_term);
+        self
+    }
 }
 
 /// Saturating the input `value` according the absolute `limit` (`-abs(limit) <= output <= abs(limit)`).
