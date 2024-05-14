@@ -106,7 +106,7 @@ where
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Pid<T: num_traits::Num> {
+pub struct Pid<T> {
     /// Ideal setpoint to strive for.
     pub setpoint: T,
     /// Proportional gain.
@@ -160,7 +160,7 @@ pub struct Pid<T: num_traits::Num> {
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ControlOutput<T: num_traits::Num> {
+pub struct ControlOutput<T> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -175,7 +175,7 @@ pub struct ControlOutput<T: num_traits::Num> {
 
 impl<T> Default for Pid<T>
 where
-    T: Default,
+    T: core::default::Default,
 {
     fn default() -> Self {
         Self::new()
@@ -184,7 +184,7 @@ where
 
 impl<T> Pid<T>
 where
-    T: num_traits::PrimInt,
+    T: num_traits::int::PrimInt,
 {
     /// Creates a new controller
     ///
@@ -214,7 +214,7 @@ where
 
 impl<T> Pid<T>
 where
-    T: num_traits::Num,
+    T: num_traits::float::FloatCore,
 {
     /// Creates a new controller
     ///
@@ -244,7 +244,8 @@ where
 
 impl<T> Pid<T>
 where
-    T: num_traits::Num,
+    T: num_traits::Num
+        + core::cmp::PartialOrd,
 {
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
