@@ -58,8 +58,8 @@
 /// - [f64]
 ///
 /// As well as any user type that matches the requirements
-pub trait Number: num_traits::sign::Signed + PartialOrd + Copy + Send {
-    pub fn clamp(self, min: Self, max: Self) -> Self;
+pub trait Number: num_traits::sign::Signed + PartialOrd + Default + Copy + Send {
+    fn clamp(self, min: Self, max: Self) -> Self;
 }
 
 // Implement `Number` for all types that
@@ -67,11 +67,12 @@ pub trait Number: num_traits::sign::Signed + PartialOrd + Copy + Send {
 impl<T> Number for T
 where
     T: num_traits::sign::Signed
-        + PartialOrd 
-        + Copy 
+        + PartialOrd
+        + Default
+        + Copy
         + Send,
 {
-    pub fn clamp(self, min: Self, max: Self) -> Self {
+    fn clamp(self, min: Self, max: Self) -> Self {
         if self < min {min} else 
         if self > max {max} else 
         {self}
@@ -203,19 +204,19 @@ where
     /// - [Self::d()]: Derivative gain setting
     pub const fn new() -> Self {
         Self {
-            setpoint: 0 as T,
-            kp: 0 as T,
-            ki: 0 as T,
-            kd: 0 as T,
-            p_limit_high: 0 as T,
-            p_limit_low: 0 as T,
-            i_limit_high: 0 as T,
-            i_limit_low: 0 as T,
-            d_limit_high: 0 as T,
-            d_limit_low: 0 as T,
-            o_limit_high: 0 as T,
-            o_limit_low: 0 as T,
-            i_term: 0 as T,
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
             prev_measurement: None,
         }
     }
@@ -234,19 +235,19 @@ where
     /// - [Self::d()]: Derivative gain setting
     pub const fn new() -> Self {
         Self {
-            setpoint: 0.0 as T,
-            kp: 0.0 as T,
-            ki: 0.0 as T,
-            kd: 0.0 as T,
-            p_limit_high: 0.0 as T,
-            p_limit_low: 0.0 as T,
-            i_limit_high: 0.0 as T,
-            i_limit_low: 0.0 as T,
-            d_limit_high: 0.0 as T,
-            d_limit_low: 0.0 as T,
-            o_limit_high: 0.0 as T,
-            o_limit_low: 0.0 as T,
-            i_term: 0.0 as T,
+            setpoint: 0.0,
+            kp: 0.0,
+            ki: 0.0,
+            kd: 0.0,
+            p_limit_high: 0.0,
+            p_limit_low: 0.0,
+            i_limit_high: 0.0,
+            i_limit_low: 0.0,
+            d_limit_high: 0.0,
+            d_limit_low: 0.0,
+            o_limit_high: 0.0,
+            o_limit_low: 0.0,
+            i_term: 0.0,
             prev_measurement: None,
         }
     }
