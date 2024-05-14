@@ -46,15 +46,32 @@
 //! ```
 #![no_std]
 
-trait PartialEqClamp {
-    fn clamp(self, min: Self, max: Self) -> Self;
+/// A trait for any numeric type usable in the PID controller
+///
+/// This trait is automatically implemented for all types that satisfy `PartialOrd + num_traits::Signed + Copy`. This includes all of the signed float types and builtin integer except for [isize]:
+/// - [i8]
+/// - [i16]
+/// - [i32]
+/// - [i64]
+/// - [i128]
+/// - [f32]
+/// - [f64]
+///
+/// As well as any user type that matches the requirements
+pub trait Number: num_traits::sign::Signed + PartialOrd + Copy + Send {
+    pub fn clamp(self, min: Self, max: Self) -> Self;
 }
 
-impl<T> PartialEqClamp for T
+// Implement `Number` for all types that
+// satisfy `PartialOrd + num_traits::Signed + Copy`.
+impl<T> Number for T
 where
-    T: core::cmp::PartialOrd,
+    T: num_traits::sign::Signed
+        + PartialOrd 
+        + Copy 
+        + Send,
 {
-    fn clamp(self, min: Self, max: Self) -> Self {
+    pub fn clamp(self, min: Self, max: Self) -> Self {
         if self < min {min} else 
         if self > max {max} else 
         {self}
@@ -106,7 +123,7 @@ where
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Pid<T> {
+pub struct Pid<T: Number> {
     /// Ideal setpoint to strive for.
     pub setpoint: T,
     /// Proportional gain.
@@ -160,7 +177,7 @@ pub struct Pid<T> {
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ControlOutput<T> {
+pub struct ControlOutput<T: Number> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -173,18 +190,10 @@ pub struct ControlOutput<T> {
     pub output: T,
 }
 
-impl<T> Default for Pid<T>
-where
-    T: core::default::Default,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T> Pid<T>
 where
-    T: num_traits::int::PrimInt,
+    T: Number +
+        num_traits::int::PrimInt,
 {
     /// Creates a new controller
     ///
@@ -194,19 +203,19 @@ where
     /// - [Self::d()]: Derivative gain setting
     pub const fn new() -> Self {
         Self {
-            setpoint: 0,
-            kp: 0,
-            ki: 0,
-            kd: 0,
-            p_limit_high: 0,
-            p_limit_low: 0,
-            i_limit_high: 0,
-            i_limit_low: 0,
-            d_limit_high: 0,
-            d_limit_low: 0,
-            o_limit_high: 0,
-            o_limit_low: 0,
-            i_term: 0,
+            setpoint: 0 as T,
+            kp: 0 as T,
+            ki: 0 as T,
+            kd: 0 as T,
+            p_limit_high: 0 as T,
+            p_limit_low: 0 as T,
+            i_limit_high: 0 as T,
+            i_limit_low: 0 as T,
+            d_limit_high: 0 as T,
+            d_limit_low: 0 as T,
+            o_limit_high: 0 as T,
+            o_limit_low: 0 as T,
+            i_term: 0 as T,
             prev_measurement: None,
         }
     }
@@ -214,7 +223,8 @@ where
 
 impl<T> Pid<T>
 where
-    T: num_traits::float::FloatCore,
+    T: Number
+        + num_traits::float::FloatCore,
 {
     /// Creates a new controller
     ///
@@ -224,19 +234,19 @@ where
     /// - [Self::d()]: Derivative gain setting
     pub const fn new() -> Self {
         Self {
-            setpoint: 0.0,
-            kp: 0.0,
-            ki: 0.0,
-            kd: 0.0,
-            p_limit_high: 0.0,
-            p_limit_low: 0.0,
-            i_limit_high: 0.0,
-            i_limit_low: 0.0,
-            d_limit_high: 0.0,
-            d_limit_low: 0.0,
-            o_limit_high: 0.0,
-            o_limit_low: 0.0,
-            i_term: 0.0,
+            setpoint: 0.0 as T,
+            kp: 0.0 as T,
+            ki: 0.0 as T,
+            kd: 0.0 as T,
+            p_limit_high: 0.0 as T,
+            p_limit_low: 0.0 as T,
+            i_limit_high: 0.0 as T,
+            i_limit_low: 0.0 as T,
+            d_limit_high: 0.0 as T,
+            d_limit_low: 0.0 as T,
+            o_limit_high: 0.0 as T,
+            o_limit_low: 0.0 as T,
+            i_term: 0.0 as T,
             prev_measurement: None,
         }
     }
@@ -244,8 +254,7 @@ where
 
 impl<T> Pid<T>
 where
-    T: num_traits::Num
-        + core::cmp::PartialOrd,
+    T: Number,
 {
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
