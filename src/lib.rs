@@ -55,8 +55,8 @@ where
     T: core::cmp::PartialOrd,
 {
     fn clamp(self, min: Self, max: Self) -> Self {
-        if self.lt(min) {min} else 
-        if self.gt(max) {max} else 
+        if self < min {min} else 
+        if self > max {max} else 
         {self}
     }
 }
@@ -203,7 +203,7 @@ where
             d_limit_low: T::default(),
             o_limit_high: T::default(),
             o_limit_low: T::default(),
-            integral_term: T::default(),
+            i_term: T::default(),
             prev_measurement: None,
         }
     }
@@ -234,14 +234,16 @@ where
 
     /// Sets the [Self::p] limit for this controller.
     pub fn clamp(&mut self, low: impl Into<T>, high: impl Into<T>) -> &mut Self {
-        self.p_limit_low = low.into();
-        self.p_limit_high = high.into();
-        self.i_limit_low = low.into();
-        self.i_limit_high = high.into();
-        self.d_limit_low = low.into();
-        self.d_limit_high = high.into();
-        self.o_limit_low = low.into();
-        self.o_limit_high = high.into();
+        let low = low.into();
+        let high = high.into();
+        self.p_limit_low = low;
+        self.p_limit_high = high;
+        self.i_limit_low = low;
+        self.i_limit_high = high;
+        self.d_limit_low = low;
+        self.d_limit_high = high;
+        self.o_limit_low = low;
+        self.o_limit_high = high;
         self
     }
 
