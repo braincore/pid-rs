@@ -191,10 +191,7 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-impl<T> Pid<T>
-where
-    T: Number +
-        num_traits::int::PrimInt,
+impl<T: Number + num_traits::int::PrimInt> Pid<T>
 {
     /// Creates a new controller
     ///
@@ -202,7 +199,7 @@ where
     /// - [Self::p()]: Proportional gain setting
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
-    pub const fn new() -> Self {
+    pub const fn new_int() -> Self {
         Self {
             setpoint: 0,
             kp: 0,
@@ -222,10 +219,7 @@ where
     }
 }
 
-impl<T> Pid<T>
-where
-    T: Number
-        + num_traits::float::FloatCore,
+impl<T: Number + num_traits::float::FloatCore> Pid<T>
 {
     /// Creates a new controller
     ///
@@ -233,7 +227,7 @@ where
     /// - [Self::p()]: Proportional gain setting
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
-    pub const fn new() -> Self {
+    pub const fn new_float() -> Self {
         Self {
             setpoint: 0.0,
             kp: 0.0,
@@ -253,9 +247,7 @@ where
     }
 }
 
-impl<T> Pid<T>
-where
-    T: Number,
+impl<T: Number> Pid<T>
 {
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
