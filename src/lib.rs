@@ -172,6 +172,30 @@ pub struct ControlOutput<T> {
     pub output: T,
 }
 
+impl<T> Default for Pid<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self {
+            setpoint: T::default(),
+            kp: T::default(),
+            ki: T::default(),
+            kd: T::default(),
+            p_limit_high: T::default(),
+            p_limit_low: T::default(),
+            i_limit_high: T::default(),
+            i_limit_low: T::default(),
+            d_limit_high: T::default(),
+            d_limit_low: T::default(),
+            o_limit_high: T::default(),
+            o_limit_low: T::default(),
+            i_term: T::default(),
+            prev_measurement: None,
+        }
+    }
+}
+
 impl<T> Pid<T>
 where
     T: core::ops::Sub<T, Output = T>
@@ -190,22 +214,7 @@ where
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
     pub fn new() -> Self {
-        Self {
-            setpoint: T::default(),
-            kp: T::default(),
-            ki: T::default(),
-            kd: T::default(),
-            p_limit_high: T::default(),
-            p_limit_low: T::default(),
-            i_limit_high: T::default(),
-            i_limit_low: T::default(),
-            d_limit_high: T::default(),
-            d_limit_low: T::default(),
-            o_limit_high: T::default(),
-            o_limit_low: T::default(),
-            i_term: T::default(),
-            prev_measurement: None,
-        }
+        Self::default()
     }
 
     /// Sets the [Self::p] gain for this controller.
@@ -234,8 +243,8 @@ where
 
     /// Sets the [Self::p] limit for this controller.
     pub fn clamp(&mut self, low: impl Into<T>, high: impl Into<T>) -> &mut Self {
-        let low = low.into();
-        let high = high.into();
+        let low: T = low.into();
+        let high: T = high.into();
         self.p_limit_low = low;
         self.p_limit_high = high;
         self.i_limit_low = low;
