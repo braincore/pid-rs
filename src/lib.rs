@@ -191,7 +191,7 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-impl<T: Number + num_traits::int::PrimInt> Pid<T>
+impl Pid<i8>
 {
     /// Creates a new controller
     ///
@@ -199,7 +199,7 @@ impl<T: Number + num_traits::int::PrimInt> Pid<T>
     /// - [Self::p()]: Proportional gain setting
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
-    pub const fn new_int() -> Self {
+    pub const fn new() -> Self {
         Self {
             setpoint: 0,
             kp: 0,
@@ -219,7 +219,7 @@ impl<T: Number + num_traits::int::PrimInt> Pid<T>
     }
 }
 
-impl<T: Number + num_traits::float::FloatCore> Pid<T>
+impl Pid<i16>
 {
     /// Creates a new controller
     ///
@@ -227,7 +227,147 @@ impl<T: Number + num_traits::float::FloatCore> Pid<T>
     /// - [Self::p()]: Proportional gain setting
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
-    pub const fn new_float() -> Self {
+    pub const fn new() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i32>
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub const fn new() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i64>
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub const fn new() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i128>
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub const fn new() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<f32>
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub const fn new() -> Self {
+        Self {
+            setpoint: 0.0,
+            kp: 0.0,
+            ki: 0.0,
+            kd: 0.0,
+            p_limit_high: 0.0,
+            p_limit_low: 0.0,
+            i_limit_high: 0.0,
+            i_limit_low: 0.0,
+            d_limit_high: 0.0,
+            d_limit_low: 0.0,
+            o_limit_high: 0.0,
+            o_limit_low: 0.0,
+            i_term: 0.0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<f64>
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub const fn new() -> Self {
         Self {
             setpoint: 0.0,
             kp: 0.0,
