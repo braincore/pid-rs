@@ -106,7 +106,7 @@ where
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Pid<T> {
+pub struct Pid<T: num_traits::Num> {
     /// Ideal setpoint to strive for.
     pub setpoint: T,
     /// Proportional gain.
@@ -159,7 +159,8 @@ pub struct Pid<T> {
 /// println!("P: {}\nI: {}\nD: {}\nFinal Output: {}", output.p, output.i, output.d, output.output);
 /// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct ControlOutput<T> {
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ControlOutput<T: num_traits::Num> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -177,20 +178,35 @@ where
     T: Default,
 {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> Pid<T>
+where
+    T: num_traits::PrimInt,
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub const fn new() -> Self {
         Self {
-            setpoint: T::default(),
-            kp: T::default(),
-            ki: T::default(),
-            kd: T::default(),
-            p_limit_high: T::default(),
-            p_limit_low: T::default(),
-            i_limit_high: T::default(),
-            i_limit_low: T::default(),
-            d_limit_high: T::default(),
-            d_limit_low: T::default(),
-            o_limit_high: T::default(),
-            o_limit_low: T::default(),
-            i_term: T::default(),
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
             prev_measurement: None,
         }
     }
@@ -198,25 +214,38 @@ where
 
 impl<T> Pid<T>
 where
-    T: core::ops::Sub<T, Output = T>
-        + core::ops::Add<T, Output = T>
-        + core::ops::Mul<T, Output = T>
-        + core::ops::Div<T, Output = T>
-        + core::cmp::PartialOrd
-        + Default
-        + core::ops::Neg<Output = T>
-        + core::marker::Copy,
+    T: num_traits::Num,
 {
-    /// Creates a new controller with the target setpoint and the output limit
+    /// Creates a new controller
     ///
     /// To set your P, I, and D gains into this controller, please use the following builder methods:
     /// - [Self::p()]: Proportional gain setting
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self {
+            setpoint: 0.0,
+            kp: 0.0,
+            ki: 0.0,
+            kd: 0.0,
+            p_limit_high: 0.0,
+            p_limit_low: 0.0,
+            i_limit_high: 0.0,
+            i_limit_low: 0.0,
+            d_limit_high: 0.0,
+            d_limit_low: 0.0,
+            o_limit_high: 0.0,
+            o_limit_low: 0.0,
+            i_term: 0.0,
+            prev_measurement: None,
+        }
     }
+}
 
+impl<T> Pid<T>
+where
+    T: num_traits::Num,
+{
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
         self.kp = gain.into();
