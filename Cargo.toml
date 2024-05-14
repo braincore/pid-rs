@@ -14,6 +14,7 @@ categories = ["no-std", "embedded", "algorithms"]
 readme = "README.md"
 
 [dependencies]
+num-traits = { version = "0.2", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
 [badges]
