@@ -191,8 +191,8 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-unsafe impl<T> Send for Pid<T> where T: Send {}
-unsafe impl<T> Send for ControlOutput<T> where T: Send {}
+unsafe impl<T> Send for Pid<T> where T: Number {}
+unsafe impl<T> Send for ControlOutput<T> where T: Number {}
 
 impl Pid<i8>
 {
