@@ -191,30 +191,6 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-impl <T: Number, F: Number> From<Pid<F>> for Pid<T>
-where
-    T: From<F>
-{
-    fn from(value: Pid<F>) -> Self {
-        Self {
-            setpoint: T::from(value.setpoint),
-            kp: T::from(value.kp),
-            ki: T::from(value.ki),
-            kd: T::from(value.kd),
-            p_limit_high: T::from(value.p_limit_high),
-            p_limit_low: T::from(value.p_limit_low),
-            i_limit_high: T::from(value.i_limit_high),
-            i_limit_low: T::from(value.i_limit_low),
-            d_limit_high: T::from(value.d_limit_high),
-            d_limit_low: T::from(value.d_limit_low),
-            o_limit_high: T::from(value.o_limit_high),
-            o_limit_low: T::from(value.o_limit_low),
-            i_term: T::from(value.i_term),
-            prev_measurement: value.prev_measurement.map(|v| T::from(v)),
-        }
-    }
-}
-
 impl Pid<i8>
 {
     pub const fn new_const() -> Self {
