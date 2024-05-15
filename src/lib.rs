@@ -246,28 +246,28 @@ impl Pid<i8>
 impl Pid<i16>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new() }
+        Self { ..Pid::<i8>::new().into() }
     }
 }
 
 impl Pid<i32>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new() }
+        Self { ..Pid::<i8>::new().into() }
     }
 }
 
 impl Pid<i64>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new() }
+        Self { ..Pid::<i8>::new().into() }
     }
 }
 
 impl Pid<i128>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new() }
+        Self { ..Pid::<i8>::new().into() }
     }
 }
 
@@ -296,7 +296,7 @@ impl Pid<f32>
 impl Pid<f64>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<f32>::new() }
+        Self { ..Pid::<f32>::new().into() }
     }
 }
 
