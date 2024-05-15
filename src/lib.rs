@@ -191,7 +191,7 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-impl<T: Number, F: Number> From<Pid<F>> for Pid<T>
+impl const<T: Number, F: Number> From<Pid<F>> for Pid<T>
 where
     T: From<F>
 {
