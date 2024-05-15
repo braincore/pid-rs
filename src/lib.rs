@@ -215,6 +215,34 @@ where
     }
 }
 
+impl<T: Number + !i8 + !i16 + !i32 + !i64 + !i128 + !f32 + !f64> Pid<T>
+{
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub fn new() -> Self {
+        Self {
+            setpoint: T::default(),
+            kp: T::default(),
+            ki: T::default(),
+            kd: T::default(),
+            p_limit_high: T::default(),
+            p_limit_low: T::default(),
+            i_limit_high: T::default(),
+            i_limit_low: T::default(),
+            d_limit_high: T::default(),
+            d_limit_low: T::default(),
+            o_limit_high: T::default(),
+            o_limit_low: T::default(),
+            i_term: T::default(),
+            prev_measurement: None,
+        }
+    }
+}
+
 impl Pid<i8>
 {
     pub const fn new() -> Self {
@@ -371,31 +399,6 @@ impl Pid<f64>
 
 impl<T: Number> Pid<T>
 {
-    /// Creates a new controller
-    ///
-    /// To set your P, I, and D gains into this controller, please use the following builder methods:
-    /// - [Self::p()]: Proportional gain setting
-    /// - [Self::i()]: Integral gain setting
-    /// - [Self::d()]: Derivative gain setting
-    pub fn new() -> Self {
-        Self {
-            setpoint: T::default(),
-            kp: T::default(),
-            ki: T::default(),
-            kd: T::default(),
-            p_limit_high: T::default(),
-            p_limit_low: T::default(),
-            i_limit_high: T::default(),
-            i_limit_low: T::default(),
-            d_limit_high: T::default(),
-            d_limit_low: T::default(),
-            o_limit_high: T::default(),
-            o_limit_low: T::default(),
-            i_term: T::default(),
-            prev_measurement: None,
-        }
-    }
-
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
         self.kp = gain.into();
