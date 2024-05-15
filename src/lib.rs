@@ -215,7 +215,161 @@ where
     }
 }
 
-impl<T: Number + !i8 + !i16 + !i32 + !i64 + !i128 + !f32 + !f64> Pid<T>
+impl Pid<i8>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i16>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i32>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i64>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<i128>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<f32>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0.0,
+            kp: 0.0,
+            ki: 0.0,
+            kd: 0.0,
+            p_limit_high: 0.0,
+            p_limit_low: 0.0,
+            i_limit_high: 0.0,
+            i_limit_low: 0.0,
+            d_limit_high: 0.0,
+            d_limit_low: 0.0,
+            o_limit_high: 0.0,
+            o_limit_low: 0.0,
+            i_term: 0.0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl Pid<f64>
+{
+    pub const fn new_const() -> Self {
+        Self {
+            setpoint: 0.0,
+            kp: 0.0,
+            ki: 0.0,
+            kd: 0.0,
+            p_limit_high: 0.0,
+            p_limit_low: 0.0,
+            i_limit_high: 0.0,
+            i_limit_low: 0.0,
+            d_limit_high: 0.0,
+            d_limit_low: 0.0,
+            o_limit_high: 0.0,
+            o_limit_low: 0.0,
+            i_term: 0.0,
+            prev_measurement: None,
+        }
+    }
+}
+
+impl<T: Number> Pid<T>
 {
     /// Creates a new controller
     ///
@@ -241,164 +395,7 @@ impl<T: Number + !i8 + !i16 + !i32 + !i64 + !i128 + !f32 + !f64> Pid<T>
             prev_measurement: None,
         }
     }
-}
 
-impl Pid<i8>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0,
-            kp: 0,
-            ki: 0,
-            kd: 0,
-            p_limit_high: 0,
-            p_limit_low: 0,
-            i_limit_high: 0,
-            i_limit_low: 0,
-            d_limit_high: 0,
-            d_limit_low: 0,
-            o_limit_high: 0,
-            o_limit_low: 0,
-            i_term: 0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl Pid<i16>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0,
-            kp: 0,
-            ki: 0,
-            kd: 0,
-            p_limit_high: 0,
-            p_limit_low: 0,
-            i_limit_high: 0,
-            i_limit_low: 0,
-            d_limit_high: 0,
-            d_limit_low: 0,
-            o_limit_high: 0,
-            o_limit_low: 0,
-            i_term: 0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl Pid<i32>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0,
-            kp: 0,
-            ki: 0,
-            kd: 0,
-            p_limit_high: 0,
-            p_limit_low: 0,
-            i_limit_high: 0,
-            i_limit_low: 0,
-            d_limit_high: 0,
-            d_limit_low: 0,
-            o_limit_high: 0,
-            o_limit_low: 0,
-            i_term: 0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl Pid<i64>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0,
-            kp: 0,
-            ki: 0,
-            kd: 0,
-            p_limit_high: 0,
-            p_limit_low: 0,
-            i_limit_high: 0,
-            i_limit_low: 0,
-            d_limit_high: 0,
-            d_limit_low: 0,
-            o_limit_high: 0,
-            o_limit_low: 0,
-            i_term: 0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl Pid<i128>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0,
-            kp: 0,
-            ki: 0,
-            kd: 0,
-            p_limit_high: 0,
-            p_limit_low: 0,
-            i_limit_high: 0,
-            i_limit_low: 0,
-            d_limit_high: 0,
-            d_limit_low: 0,
-            o_limit_high: 0,
-            o_limit_low: 0,
-            i_term: 0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl Pid<f32>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0.0,
-            kp: 0.0,
-            ki: 0.0,
-            kd: 0.0,
-            p_limit_high: 0.0,
-            p_limit_low: 0.0,
-            i_limit_high: 0.0,
-            i_limit_low: 0.0,
-            d_limit_high: 0.0,
-            d_limit_low: 0.0,
-            o_limit_high: 0.0,
-            o_limit_low: 0.0,
-            i_term: 0.0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl Pid<f64>
-{
-    pub const fn new() -> Self {
-        Self {
-            setpoint: 0.0,
-            kp: 0.0,
-            ki: 0.0,
-            kd: 0.0,
-            p_limit_high: 0.0,
-            p_limit_low: 0.0,
-            i_limit_high: 0.0,
-            i_limit_low: 0.0,
-            d_limit_high: 0.0,
-            d_limit_low: 0.0,
-            o_limit_high: 0.0,
-            o_limit_low: 0.0,
-            i_term: 0.0,
-            prev_measurement: None,
-        }
-    }
-}
-
-impl<T: Number> Pid<T>
-{
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
         self.kp = gain.into();
