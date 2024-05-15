@@ -191,8 +191,7 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-#![feature(const_trait_impl)]
-impl const<T: Number, F: Number> From<Pid<F>> for Pid<T>
+impl <T: Number, F: Number> From<Pid<F>> for Pid<T>
 where
     T: From<F>
 {
@@ -218,12 +217,6 @@ where
 
 impl Pid<i8>
 {
-    /// Creates a new controller
-    ///
-    /// To set your P, I, and D gains into this controller, please use the following builder methods:
-    /// - [Self::p()]: Proportional gain setting
-    /// - [Self::i()]: Integral gain setting
-    /// - [Self::d()]: Derivative gain setting
     pub const fn new() -> Self {
         Self {
             setpoint: 0,
@@ -247,28 +240,88 @@ impl Pid<i8>
 impl Pid<i16>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new().into() }
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
     }
 }
 
 impl Pid<i32>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new().into() }
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
     }
 }
 
 impl Pid<i64>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new().into() }
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
     }
 }
 
 impl Pid<i128>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<i8>::new().into() }
+        Self {
+            setpoint: 0,
+            kp: 0,
+            ki: 0,
+            kd: 0,
+            p_limit_high: 0,
+            p_limit_low: 0,
+            i_limit_high: 0,
+            i_limit_low: 0,
+            d_limit_high: 0,
+            d_limit_low: 0,
+            o_limit_high: 0,
+            o_limit_low: 0,
+            i_term: 0,
+            prev_measurement: None,
+        }
     }
 }
 
@@ -297,12 +350,52 @@ impl Pid<f32>
 impl Pid<f64>
 {
     pub const fn new() -> Self {
-        Self { ..Pid::<f32>::new().into() }
+        Self {
+            setpoint: 0.0,
+            kp: 0.0,
+            ki: 0.0,
+            kd: 0.0,
+            p_limit_high: 0.0,
+            p_limit_low: 0.0,
+            i_limit_high: 0.0,
+            i_limit_low: 0.0,
+            d_limit_high: 0.0,
+            d_limit_low: 0.0,
+            o_limit_high: 0.0,
+            o_limit_low: 0.0,
+            i_term: 0.0,
+            prev_measurement: None,
+        }
     }
 }
 
 impl<T: Number> Pid<T>
 {
+    /// Creates a new controller
+    ///
+    /// To set your P, I, and D gains into this controller, please use the following builder methods:
+    /// - [Self::p()]: Proportional gain setting
+    /// - [Self::i()]: Integral gain setting
+    /// - [Self::d()]: Derivative gain setting
+    pub fn new() -> Self {
+        Self {
+            setpoint: T::default(),
+            kp: T::default(),
+            ki: T::default(),
+            kd: T::default(),
+            p_limit_high: T::default(),
+            p_limit_low: T::default(),
+            i_limit_high: T::default(),
+            i_limit_low: T::default(),
+            d_limit_high: T::default(),
+            d_limit_low: T::default(),
+            o_limit_high: T::default(),
+            o_limit_low: T::default(),
+            i_term: T::default(),
+            prev_measurement: None,
+        }
+    }
+
     /// Sets the [Self::p] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
         self.kp = gain.into();
