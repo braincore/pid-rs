@@ -46,10 +46,6 @@
 //! ```
 #![no_std]
 
-use core::num;
-
-use num_traits::CheckedMul;
-
 /// A trait for any numeric type usable in the PID controller
 ///
 /// This trait is automatically implemented for all types that satisfy `PartialOrd + num_traits::Signed + Copy`. This includes all of the signed float types and builtin integer except for [isize]:
@@ -117,7 +113,7 @@ pub enum PidError {
 /// # Type Warning
 ///
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pid<T: Number> {
     /// Ideal setpoint to strive for.
@@ -178,7 +174,7 @@ pub struct ControlOutput<T: Number> {
     pub output: T,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PidLimit<T: Number> {
     min: Option<T>,
