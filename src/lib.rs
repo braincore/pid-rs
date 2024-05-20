@@ -115,7 +115,7 @@ pub enum PidError {
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
 #[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Pid<T: Number> {
+pub struct Pid<T> {
     /// Ideal setpoint to strive for.
     pub setpoint: Option<T>,
     /// Proportional gain.
@@ -161,7 +161,7 @@ pub struct Pid<T: Number> {
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ControlOutput<T: Number> {
+pub struct ControlOutput<T> {
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -176,7 +176,7 @@ pub struct ControlOutput<T: Number> {
 
 #[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct PidLimit<T: Number> {
+pub struct PidLimit<T> {
     min: Option<T>,
     max: Option<T>,
 }
