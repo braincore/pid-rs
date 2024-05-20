@@ -63,14 +63,20 @@ use num_traits::CheckedMul;
 ///
 /// As well as any user type that matches the requirements
 pub trait Number: num_traits::sign::Signed
-    + num_traits::ops::checked::CheckedAdd
+    + PartialOrd
+    + Copy
+{}
+
+pub trait CheckedBasic: num_traits::ops::checked::CheckedAdd
     + num_traits::ops::checked::CheckedSub
     + num_traits::ops::checked::CheckedMul
     + num_traits::ops::checked::CheckedDiv
     + num_traits::ops::checked::CheckedNeg
-    + PartialOrd
-    + Copy
-    + Send
+{}
+
+impl<T> CheckedBasic for T
+where
+    T: Number
 {}
 
 /// An error emitted due to problems with the PID controller.
@@ -216,7 +222,7 @@ where
 
 impl<T> Pid<T>
 where
-    T: Number
+    T: Number + CheckedBasic
 {
     /// Creates a new controller
     ///
