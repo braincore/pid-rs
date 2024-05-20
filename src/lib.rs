@@ -65,6 +65,7 @@ use num_traits::CheckedMul;
 pub trait Number: num_traits::sign::Signed
     + PartialOrd
     + Copy
+    + CheckedBasic
 {}
 
 pub trait CheckedBasic: num_traits::ops::checked::CheckedAdd
@@ -72,11 +73,6 @@ pub trait CheckedBasic: num_traits::ops::checked::CheckedAdd
     + num_traits::ops::checked::CheckedMul
     + num_traits::ops::checked::CheckedDiv
     + num_traits::ops::checked::CheckedNeg
-{}
-
-impl<T> CheckedBasic for T
-where
-    T: Number
 {}
 
 /// An error emitted due to problems with the PID controller.
@@ -222,7 +218,7 @@ where
 
 impl<T> Pid<T>
 where
-    T: Number + CheckedBasic
+    T: Number
 {
     /// Creates a new controller
     ///
