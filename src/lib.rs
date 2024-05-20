@@ -76,7 +76,7 @@ pub trait CheckedBasic: num_traits::ops::checked::CheckedAdd
 {}
 
 /// An error emitted due to problems with the PID controller.
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum PidError {
     NoSetpoint,
     OpOverflow,
