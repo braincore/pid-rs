@@ -68,18 +68,11 @@ pub trait Number: num_traits::sign::Signed
     + CheckedBasic
 {}
 
-pub trait CheckedBasic: num_traits::ops::checked::CheckedAdd
-    + num_traits::ops::checked::CheckedSub
-    + num_traits::ops::checked::CheckedMul
-    + num_traits::ops::checked::CheckedDiv
-    + num_traits::ops::checked::CheckedNeg
-{}
-
 /// An error emitted due to problems with the PID controller.
 #[derive(Debug)]
 pub enum PidError {
     NoSetpoint,
-    OpOverflow,
+    OpsOverflow,
 }
 
 /// Adjustable proportional-integral-derivative (PID) controller.
@@ -317,13 +310,11 @@ where
         // Calculate the error between the ideal setpoint and the current
         // measurement to compare against
         let setpoint = self.setpoint.ok_or(PidError::NoSetpoint)?;
-        let error = setpoint.checked_sub(&measurement)
-            .ok_or(PidError::OpOverflow)?;
+        let error = setpoint - measurement;
         
         let p = if let Some(kp) = self.kp {
             // Calculate the proportional term and limit to it's individual limit
-            let p_unbounded = kp.checked_mul(&error)
-                .ok_or(PidError::OpOverflow)?;
+            let p_unbounded = kp * error;
             self.p_limit.clamp(p_unbounded)
         } else {T::zero()};
         
@@ -335,10 +326,7 @@ where
             // just the error (no ki), because we support ki changing dynamically,
             // we store the entire term so that we don't need to remember previous
             // ki values.
-            let i_unbounded = ki.checked_mul(&error)
-                .ok_or(PidError::OpOverflow)?
-                .checked_add(&i_term)
-                .ok_or(PidError::OpOverflow)?;
+            let i_unbounded = (ki * error) + i_term;
             // Mitigate integral windup: Don't want to keep building up error
             // beyond what i_limit will allow.
             Some(self.i_limit.clamp(i_unbounded))
@@ -351,10 +339,7 @@ where
             // Mitigate derivative kick: Use the derivative of the measurement
             // rather than the derivative of the error.
             if let Some(prev_measurement) = self.prev_measurement {
-                let d_unbounded = measurement.checked_sub(&prev_measurement)
-                    .ok_or(PidError::OpOverflow)?
-                    .checked_mul(&kd)
-                    .ok_or(PidError::OpOverflow)?;
+                let d_unbounded = kd * (measurement - prev_measurement);
                 self.d_limit.clamp(d_unbounded)
             } else {T::zero()}
         } else {T::zero()};
@@ -362,10 +347,7 @@ where
         let output = {
             // Calculate the final output by adding together the PID terms, then
             // apply the final defined output limit
-            let o_unbounded = p.checked_add(&i)
-                .ok_or(PidError::OpOverflow)?
-                .checked_add(&d)
-                .ok_or(PidError::OpOverflow)?;
+            let o_unbounded = p + i + d;
             self.out_limit.clamp(o_unbounded)
         };
 
