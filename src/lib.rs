@@ -65,7 +65,6 @@ use num_traits::CheckedMul;
 pub trait Number: num_traits::sign::Signed
     + PartialOrd
     + Copy
-    + CheckedBasic
 {}
 
 /// An error emitted due to problems with the PID controller.
