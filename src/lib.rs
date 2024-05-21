@@ -21,7 +21,7 @@
 //! assert_eq!(output.p, 50.0);
 //!
 //! // It won't change on repeat; the controller is proportional-only
-//! let output = pid.next_control_output(10.0).unwrap();
+//! let output = pid.update(10.0).unwrap();
 //! assert_eq!(output.output, 50.0); // <--
 //! assert_eq!(output.p, 50.0);
 //!
