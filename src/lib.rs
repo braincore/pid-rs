@@ -58,10 +58,11 @@
 /// - [f64]
 ///
 /// As well as any user type that matches the requirements
-pub trait Number: num_traits::sign::Signed
-    + PartialOrd
-    + Copy
-{}
+pub trait Number: PartialOrd + num_traits::Signed + Copy {}
+
+// Implement `Number` for all types that
+// satisfy `PartialOrd + num_traits::Signed + Copy`.
+impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 
 /// An error emitted due to problems with the PID controller.
 #[derive(Debug)]
