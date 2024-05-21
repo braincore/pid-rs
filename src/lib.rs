@@ -254,22 +254,22 @@ where
     } 
 
     /// Sets the min limits for this controller.
-    pub fn clamp_max(&mut self, max: impl Into<T>) -> &mut Self {
-        let max: T = max.into();
-        self.p_limit.max = Some(max);
-        self.i_limit.max = Some(max);
-        self.d_limit.max = Some(max);
-        self.out_limit.max = Some(max);
-        self
-    }
-
-    /// Sets the max limits for this controller.
     pub fn clamp_min(&mut self, min: impl Into<T>) -> &mut Self {
         let min: T = min.into();
         self.p_limit.min = Some(min);
         self.i_limit.min = Some(min);
         self.d_limit.min = Some(min);
         self.out_limit.min = Some(min);
+        self
+    }
+
+    /// Sets the max limits for this controller.
+    pub fn clamp_max(&mut self, max: impl Into<T>) -> &mut Self {
+        let max: T = max.into();
+        self.p_limit.max = Some(max);
+        self.i_limit.max = Some(max);
+        self.d_limit.max = Some(max);
+        self.out_limit.max = Some(max);
         self
     }
 
