@@ -64,13 +64,6 @@ pub trait Number: PartialOrd + num_traits::Signed + Copy {}
 // satisfy `PartialOrd + num_traits::Signed + Copy`.
 impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 
-/// An error emitted due to problems with the PID controller.
-#[derive(Debug)]
-pub enum PidError {
-    NoSetpoint,
-    OpsOverflow,
-}
-
 /// Adjustable proportional-integral-derivative (PID) controller.
 ///
 /// # Examples
@@ -300,12 +293,15 @@ where
     /// 
     /// - If a setpoint has not been set via `setpoint()`.
     /// - If an overflow occured in one of the calculations.
-    pub fn next_control_output(&mut self, measurement: impl Into<T>) -> Result<ControlOutput<T>, PidError> {
+    pub fn next_control_output(&mut self, measurement: impl Into<T>) -> Option<ControlOutput<T>> {
         let measurement: T = measurement.into();
         
         // Calculate the error between the ideal setpoint and the current
         // measurement to compare against
-        let setpoint = self.setpoint.ok_or(PidError::NoSetpoint)?;
+        let setpoint = match self.setpoint {
+            Some(value) => value,
+            None => return None,
+        };
         let error = setpoint - measurement;
         
         let p = if let Some(kp) = self.kp {
@@ -350,7 +346,7 @@ where
         self.prev_measurement = Some(measurement);
 
         // Return the individual term's contributions and the final output
-        Ok(ControlOutput {
+        Some(ControlOutput {
             p,
             i,
             d,
