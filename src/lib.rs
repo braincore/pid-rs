@@ -14,7 +14,7 @@
 //!     .p(10.0);
 //!
 //! // Input a measurement with an error of 5.0 from our setpoint
-//! let output = pid.next_control_output(10.0).unwrap();
+//! let output = pid.update(10.0).unwrap();
 //!
 //! // Show that the error is correct by multiplying by our kp
 //! assert_eq!(output.output, 50.0); // <--
@@ -27,7 +27,7 @@
 //!
 //! // Add a new integral term to the controller and input again
 //! pid.i(1.0);
-//! let output = pid.next_control_output(10.0).unwrap();
+//! let output = pid.update(10.0).unwrap();
 //!
 //! // Now that the integral makes the controller stateful, it will change
 //! assert_eq!(output.output, 55.0); // <--
@@ -36,7 +36,7 @@
 //!
 //! // Add our final derivative term and match our setpoint target
 //! pid.d(2.0);
-//! let output = pid.next_control_output(15.0).unwrap();
+//! let output = pid.update(15.0).unwrap();
 //!
 //! // The output will now say to go down due to the derivative
 //! assert_eq!(output.output, -5.0); // <--
@@ -80,7 +80,7 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 ///     .p(10.0);
 ///
 /// // Get first output
-/// let p_output = p_controller.next_control_output(400.0).unwrap();
+/// let p_output = p_controller.update(400.0).unwrap();
 /// ```
 ///
 /// This controller would give you set a proportional controller to `10.0` with a target of `15.0` and an output limit of `100.0` per [output](Self::next_control_output) iteration. The same controller with a full PID system built in looks like:
@@ -97,10 +97,10 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 ///     .d(0.25);
 ///
 /// // Get first output
-/// let full_output = full_controller.next_control_output(400.0).unwrap();
+/// let full_output = full_controller.update(400.0).unwrap();
 /// ```
 ///
-/// This [`next_control_output`](Self::next_control_output) method is what's used to input new values into the controller to tell it what the current state of the system is. In the examples above it's only being used once, but realistically this will be a hot method. Please see [ControlOutput] for examples of how to handle these outputs; it's quite straight forward and mirrors the values of this structure in some ways.
+/// This [`update`](Self::update) method is what's used to input new values into the controller to tell it what the current state of the system is. In the examples above it's only being used once, but realistically this will be a hot method. Please see [ControlOutput] for examples of how to handle these outputs; it's quite straight forward and mirrors the values of this structure in some ways.
 ///
 /// The last item of note is that these [`p`](Self::p()), [`i`](Self::i()), and [`d`](Self::d()) methods can be used *during* operation which lets you add and/or modify these controller values if need be.
 ///
@@ -121,7 +121,7 @@ pub struct Pid<T> {
     /// Last calculated integral value if [Pid::ki] is used.
     pub i_term: Option<T>,
     /// Previously found measurement whilst using the [Pid::next_control_output] method.
-    pub prev_measurement: Option<T>,
+    pub prev: Option<ControlOutput<T>>,
     /// Limiter for the proportional term: `-p_limit <= P <= p_limit`.
     pub p_limit: PidLimit<T>,
     /// Limiter for the integral term: `i_limit_low <= I <= i_limit_high`.
@@ -150,12 +150,16 @@ pub struct Pid<T> {
 ///     .d(2.0);
 ///
 /// // Input an example value and get a report for an output iteration
-/// let output = pid.next_control_output(26.2456).unwrap();
+/// let output = pid.update(26.2456).unwrap();
 /// println!("P: {}\nI: {}\nD: {}\nFinal Output: {}", output.p, output.i, output.d, output.output);
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ControlOutput<T> {
+    /// The input value to the controller.
+    pub input: T,
+    /// The error value based on input.
+    pub error: T,
     /// Contribution of the P term to the output.
     pub p: T,
     /// Contribution of the I term to the output.
@@ -186,6 +190,7 @@ where
         }
     }
 
+    /// Clamp a given value using pre-defined limits
     pub fn clamp(self, value: impl Into<T>) -> T {
         let mut value: T = value.into();
         value = if let Some(min) = self.min {
@@ -215,7 +220,7 @@ where
             ki: None,
             kd: None,
             i_term: None,
-            prev_measurement: None,
+            prev: None,
             p_limit: PidLimit::<T>::new(),
             i_limit: PidLimit::<T>::new(),
             d_limit: PidLimit::<T>::new(),
@@ -290,52 +295,71 @@ where
 
     /// Given a new measurement, calculates the next [control output](ControlOutput).
     ///
-    /// # Returns Error
+    /// # Returns None
     /// 
     /// - If a setpoint has not been set via `setpoint()`.
-    /// - If an overflow occured in one of the calculations.
-    pub fn next_control_output(&mut self, measurement: impl Into<T>) -> Option<ControlOutput<T>> {
-        let measurement: T = measurement.into();
+    /// - If no gain is set via `p()`, `i()` or `d()`.
+    pub fn update(&mut self, input: impl Into<T>) -> Option<ControlOutput<T>> {
+        // Convert parameters to number type
+        let input: T = input.into();
         
-        // Calculate the error between the ideal setpoint and the current
-        // measurement to compare against
+        // Return early if no setpoint is defined
         let setpoint = match self.setpoint {
             Some(value) => value,
             None => return None,
         };
-        let error = setpoint - measurement;
-        
-        let p = if let Some(kp) = self.kp {
-            // Calculate the proportional term and limit to it's individual limit
-            let p_unbounded = kp * error;
-            self.p_limit.clamp(p_unbounded)
-        } else {T::zero()};
-        
-        self.i_term = if let Some(ki) = self.ki {
-            let i_term = if let Some(i_term) = self.i_term {i_term}
-            else {T::zero()};
-            // Mitigate output jumps when ki(t) != ki(t-1).
-            // While it's standard to use an error_integral that's a running sum of
-            // just the error (no ki), because we support ki changing dynamically,
-            // we store the entire term so that we don't need to remember previous
-            // ki values.
-            let i_unbounded = (ki * error) + i_term;
-            // Mitigate integral windup: Don't want to keep building up error
-            // beyond what i_limit will allow.
-            Some(self.i_limit.clamp(i_unbounded))
-        } else {self.i_term};
 
-        let i = if let Some(i) = self.i_term {i}
-        else {T::zero()};
+        // Return early if no gains are defined
+        if (self.kp == None) &&
+            (self.ki == None) &&
+            (self.kd == None)
+        { return None };
 
-        let d = if let Some(kd) = self.kd {
-            // Mitigate derivative kick: Use the derivative of the measurement
-            // rather than the derivative of the error.
-            if let Some(prev_measurement) = self.prev_measurement {
-                let d_unbounded = kd * (measurement - prev_measurement);
-                self.d_limit.clamp(d_unbounded)
-            } else {T::zero()}
-        } else {T::zero()};
+        // Calculate the error between the ideal setpoint and the current
+        // measurement to compare against
+        let error = setpoint - input;
+
+        // Calculate proportional if it exists
+        let p = self.kp.map_or(
+            T::zero(),
+            |kp| {
+                // Calculate the proportional term and limit to it's individual limit
+                let p_unbounded = kp * error;
+                self.p_limit.clamp(p_unbounded)
+            }
+        );
+
+        // Calculate integral if it exists
+        self.i_term = self.ki.map_or(
+            self.i_term,
+            |ki| {
+                let i_term = self.i_term.map_or(T::zero(), |i| i);
+                // Mitigate output jumps when ki(t) != ki(t-1).
+                // While it's standard to use an error_integral that's a running sum of
+                // just the error (no ki), because we support ki changing dynamically,
+                // we store the entire term so that we don't need to remember previous
+                // ki values.
+                let i_unbounded = (ki * error) + i_term;
+                // Mitigate integral windup: Don't want to keep building up error
+                // beyond what i_limit will allow.
+                Some(self.i_limit.clamp(i_unbounded))
+            }
+        );
+        // Get stored integral term if it exists
+        let i = self.i_term.map_or(T::zero(), |i| i);
+
+        // Calculate derivative if it exists
+        let d = self.kd.map_or(
+            T::zero(),
+            |kd| self.prev.map_or(
+                T::zero(),
+                |prev| {
+                    // Mitigate derivative kick: Use the derivative of the measurement
+                    // rather than the derivative of the error.
+                    let d_unbounded = kd * (input - prev.input);
+                    self.d_limit.clamp(d_unbounded)
+                }
+        ));
 
         let output = {
             // Calculate the final output by adding together the PID terms, then
@@ -344,15 +368,43 @@ where
             self.out_limit.clamp(o_unbounded)
         };
 
-        self.prev_measurement = Some(measurement);
-
-        // Return the individual term's contributions and the final output
-        Some(ControlOutput {
+        // Register the individual term's contributions and the final output
+        self.prev = Some(ControlOutput {
+            input,
+            error,
             p,
             i,
             d,
             output,
-        })
+        });
+
+        // return output
+        self.prev.clone()
+    }
+
+    /// Given a new measurement and a delta time, calculates the next [control output](ControlOutput).
+    ///
+    /// # Returns None
+    /// 
+    /// - If a setpoint has not been set via `setpoint()`.
+    /// - If no gain is set via `p()`, `i()` or `d()`.
+    pub fn update_with_dt(&mut self, input: impl Into<T>, dt: impl Into<T>) -> Option<ControlOutput<T>> {
+        // Store previous integral sum
+        let i_term = self.i_term.map_or(T::zero(), |i| i);
+        // Call normal update
+        self.update(input)
+            .map(|out| self.ki.map_or(
+                Some(out),
+                |ki| {
+                    // Convert parameters to number type
+                    let dt: T = dt.into();
+                    // Calculate new integral term with delta time
+                    out.i = (ki * out.error * dt) + i_term;
+                    out.output = out.p + out.i + out.d;
+                    self.prev = Some(out);
+                    out
+                }
+            ))
     }
 }
 
@@ -372,11 +424,12 @@ mod tests {
         assert_eq!(pid.setpoint, 10.0);
 
         // Test simple proportional
-        assert_eq!(pid.next_control_output(0.0).unwrap().output, 20.0);
+        assert_eq!(pid.update(0.0).unwrap().output, 20.0);
 
         // Test proportional limit
-        pid.p_limit = 10.0;
-        assert_eq!(pid.next_control_output(0.0).unwrap().output, 10.0);
+        pid.p_limit.max = Some(10.0);
+        pid.p_limit.min = Some(-10.0);
+        assert_eq!(pid.update(0.0).unwrap().output, 10.0);
     }
 
     /// Derivative-only controller operation and limits
@@ -388,14 +441,15 @@ mod tests {
             .d(2.0);
 
         // Test that there's no derivative since it's the first measurement
-        assert_eq!(pid.next_control_output(0.0).unwrap().output, 0.0);
+        assert_eq!(pid.update(0.0).unwrap().output, 0.0);
 
         // Test that there's now a derivative
-        assert_eq!(pid.next_control_output(5.0).unwrap().output, -10.0);
+        assert_eq!(pid.update(5.0).unwrap().output, -10.0);
 
         // Test derivative limit
-        pid.d_limit = 5.0;
-        assert_eq!(pid.next_control_output(10.0).unwrap().output, -5.0);
+        pid.d_limit.max = Some(5.0);
+        pid.d_limit.min = Some(-5.0);
+        assert_eq!(pid.update(10.0).unwrap().output, -5.0);
     }
 
     /// Integral-only controller operation and limits
@@ -407,15 +461,16 @@ mod tests {
             .i(2.0);
 
         // Test basic integration
-        assert_eq!(pid.next_control_output(0.0).unwrap().output, 20.0);
-        assert_eq!(pid.next_control_output(0.0).unwrap().output, 40.0);
-        assert_eq!(pid.next_control_output(5.0).unwrap().output, 50.0);
+        assert_eq!(pid.update(0.0).unwrap().output, 20.0);
+        assert_eq!(pid.update(0.0).unwrap().output, 40.0);
+        assert_eq!(pid.update(5.0).unwrap().output, 50.0);
 
         // Test limit
-        pid.i_limit = 50.0;
-        assert_eq!(pid.next_control_output(5.0).unwrap().output, 50.0);
+        pid.i_limit.max = Some(50.0);
+        pid.i_limit.min = Some(-50.0);
+        assert_eq!(pid.update(5.0).unwrap().output, 50.0);
         // Test that limit doesn't impede reversal of error integral
-        assert_eq!(pid.next_control_output(15.0).unwrap().output, 40.0);
+        assert_eq!(pid.update(15.0).unwrap().output, 40.0);
 
         // Test that error integral accumulates negative values
         let mut pid2 = Pid::new()
@@ -423,14 +478,14 @@ mod tests {
             .clamp(-100.0, 100.0)
             .i(2.0);
 
-        assert_eq!(pid2.next_control_output(0.0).unwrap().output, -20.0);
-        assert_eq!(pid2.next_control_output(0.0).unwrap().output, -40.0);
+        assert_eq!(pid2.update(0.0).unwrap().output, -20.0);
+        assert_eq!(pid2.update(0.0).unwrap().output, -40.0);
 
-        pid2.i_limit_high = 50.0;
-        pid2.i_limit_low = -50.0;
-        assert_eq!(pid2.next_control_output(-5.0).unwrap().output, -50.0);
+        pid2.i_limit.max = Some(50.0);
+        pid2.i_limit.min = Some(-50.0);
+        assert_eq!(pid2.update(-5.0).unwrap().output, -50.0);
         // Test that limit doesn't impede reversal of error integral
-        assert_eq!(pid2.next_control_output(-15.0).unwrap().output, -40.0);
+        assert_eq!(pid2.update(-15.0).unwrap().output, -40.0);
     }
 
     /// Checks that a full PID controller's limits work properly through multiple output iterations
@@ -441,14 +496,14 @@ mod tests {
             .clamp(-100.0, 100.0)
             .p(1.0);
 
-        pid.o_limit_high = 1.0;
-        pid.o_limit_low = -1.0;
+        pid.out_limit.max = Some(1.0);
+        pid.out_limit.min = Some(-1.0);
 
-        let out = pid.next_control_output(0.0).unwrap();
+        let out = pid.update(0.0).unwrap();
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.output, 1.0);
 
-        let out = pid.next_control_output(20.0).unwrap();
+        let out = pid.update(20.0).unwrap();
         assert_eq!(out.p, -10.0); // 1.0 * (10.0 - 20.0)
         assert_eq!(out.output, -1.0);
     }
@@ -463,25 +518,25 @@ mod tests {
             .i(0.1)
             .d(1.0);
 
-        let out = pid.next_control_output(0.0).unwrap();
+        let out = pid.update(0.0).unwrap();
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.i, 1.0); // 0.1 * 10.0
         assert_eq!(out.d, 0.0); // -(1.0 * 0.0)
         assert_eq!(out.output, 11.0);
 
-        let out = pid.next_control_output(5.0).unwrap();
+        let out = pid.update(5.0).unwrap();
         assert_eq!(out.p, 5.0); // 1.0 * 5.0
         assert_eq!(out.i, 1.5); // 0.1 * (10.0 + 5.0)
         assert_eq!(out.d, -5.0); // -(1.0 * 5.0)
         assert_eq!(out.output, 1.5);
 
-        let out = pid.next_control_output(11.0).unwrap();
+        let out = pid.update(11.0).unwrap();
         assert_eq!(out.p, -1.0); // 1.0 * -1.0
         assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1)
         assert_eq!(out.d, -6.0); // -(1.0 * 6.0)
         assert_eq!(out.output, -5.6);
 
-        let out = pid.next_control_output(10.0).unwrap();
+        let out = pid.update(10.0).unwrap();
         assert_eq!(out.p, 0.0); // 1.0 * 0.0
         assert_eq!(out.i, 1.4); // 0.1 * (10.0 + 5.0 - 1.0 + 0.0)
         assert_eq!(out.d, 1.0); // -(1.0 * -1.0)
@@ -502,8 +557,8 @@ mod tests {
 
         for _ in 0..5 {
             assert_eq!(
-                pid_f32.next_control_output(0.0).unwrap().output,
-                pid_f64.next_control_output(0.0).unwrap().output as f32
+                pid_f32.update(0.0).unwrap().output,
+                pid_f64.update(0.0).unwrap().output as f32
             );
         }
     }
@@ -522,8 +577,8 @@ mod tests {
 
         for _ in 0..5 {
             assert_eq!(
-                pid_i32.next_control_output(0).unwrap().output,
-                pid_i8.next_control_output(0i8).unwrap().output as i32
+                pid_i32.update(0).unwrap().output,
+                pid_i8.update(0i8).unwrap().output as i32
             );
         }
     }
@@ -538,7 +593,7 @@ mod tests {
             .i(0.1)
             .d(1.0);
 
-        let out = pid.next_control_output(0.0).unwrap();
+        let out = pid.update(0.0).unwrap();
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
         assert_eq!(out.i, 1.0); // 0.1 * 10.0
         assert_eq!(out.d, 0.0); // -(1.0 * 0.0)
@@ -547,8 +602,10 @@ mod tests {
         pid.setpoint(0.0);
 
         assert_eq!(
-            pid.next_control_output(0.0).unwrap(),
+            pid.update(0.0).unwrap(),
             ControlOutput {
+                input: 0.0,
+                error: 10.0,
                 p: 0.0,
                 i: 1.0,
                 d: -0.0,
@@ -567,10 +624,10 @@ mod tests {
             .i(1.0)
             .d(1.0);
 
-        pid.o_limit_high = -10.0;
-        pid.o_limit_low = 10.0;
+        pid.out_limit.max = Some(-10.0);
+        pid.out_limit.min = Some(10.0);
 
-        let out = pid.next_control_output(0.0).unwrap();
+        let out = pid.update(0.0).unwrap();
         assert_eq!(out.p, 10.0);
         assert_eq!(out.i, 10.0);
         assert_eq!(out.d, 0.0);
