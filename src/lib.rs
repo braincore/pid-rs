@@ -284,7 +284,8 @@ where
     /// Resets the integral term back to zero, this may drastically change the
     /// control output.
     pub fn reset_integral_term(&mut self) -> &mut Self {
-        self.set_integral_term(T::zero())
+        self.i_term = None;
+        self
     }
 
     /// Given a new measurement, calculates the next [control output](ControlOutput).
