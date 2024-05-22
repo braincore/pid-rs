@@ -10,7 +10,7 @@
 //! // Create a new proportional-only PID controller with a setpoint of 15
 //! let mut pid = Pid::new()
 //!     .setpoint(15.0)
-//!     .clamp(-100.0, 100.0)
+//!     .limit(-100.0, 100.0)
 //!     .p(10.0);
 //!
 //! // Input a measurement with an error of 5.0 from our setpoint
@@ -76,7 +76,7 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 /// // Create limited controller
 /// let mut p_controller = Pid::new()
 ///     .setpoint(15.0)
-///     .clamp(-100.0, 100.0)
+///     .limit(-100.0, 100.0)
 ///     .p(10.0);
 ///
 /// // Get first output
@@ -91,7 +91,7 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 /// // Create full PID controller
 /// let mut full_controller = Pid::new()
 ///     .setpoint(15.0)
-///     .clamp(-100.0, 100.0);
+///     .limit(-100.0, 100.0);
 ///     .p(10.0)
 ///     .i(4.5)
 ///     .d(0.25);
@@ -144,7 +144,7 @@ pub struct Pid<T> {
 /// // Setup controller
 /// let mut pid = Pid::new()
 ///     .setpoint(15.0)
-///     .clamp(0.0, 100.0)
+///     .limit(0.0, 100.0)
 ///     .p(10.0)
 ///     .i(1.0)
 ///     .d(2.0);
@@ -193,10 +193,8 @@ where
 
     /// Sets the min and max limits
     pub fn set(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
-        let min: T = min.into();
-        let max: T = max.into();
-        self.min = Some(min);
-        self.max = Some(max);
+        self.min = Some(min.into());
+        self.max = Some(max.into());
         self
     }
 
@@ -391,8 +389,10 @@ where
                     // Convert parameters to number type
                     let dt: T = dt.into();
                     // Calculate new integral term with delta time
-                    out.i = (ki * out.error * dt) + i_term;
-                    out.output = out.p + out.i + out.d;
+                    let i_unbounded = (ki * out.error * dt) + i_term;
+                    out.i = self.i_limit.clamp(i_unbounded);
+                    let o_unbounded = out.p + out.i + out.d;
+                    out.output = self.out_limit.clamp(o_unbounded);
                     self.prev = Some(out);
                     out
                 }
@@ -410,7 +410,7 @@ mod tests {
     fn proportional() {
         let mut pid = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .p(2.0);
         
         assert_eq!(pid.setpoint, 10.0);
@@ -419,9 +419,8 @@ mod tests {
         assert_eq!(pid.update(0.0).unwrap().output, 20.0);
 
         // Test proportional limit
-        pid.p_limit.max = Some(10.0);
-        pid.p_limit.min = Some(-10.0);
-        assert_eq!(pid.update(0.0).unwrap().output, 10.0);
+        pid.p_limit.set(-10.0, 10.0);
+        assert_eq!(pid.update(0.0).unwrap().output,10.0);
     }
 
     /// Derivative-only controller operation and limits
@@ -429,7 +428,7 @@ mod tests {
     fn derivative() {
         let mut pid = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .d(2.0);
 
         // Test that there's no derivative since it's the first measurement
@@ -439,8 +438,7 @@ mod tests {
         assert_eq!(pid.update(5.0).unwrap().output, -10.0);
 
         // Test derivative limit
-        pid.d_limit.max = Some(5.0);
-        pid.d_limit.min = Some(-5.0);
+        pid.d_limit.set(-5.0, 5.0);
         assert_eq!(pid.update(10.0).unwrap().output, -5.0);
     }
 
@@ -449,7 +447,7 @@ mod tests {
     fn integral() {
         let mut pid = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .i(2.0);
 
         // Test basic integration
@@ -458,8 +456,7 @@ mod tests {
         assert_eq!(pid.update(5.0).unwrap().output, 50.0);
 
         // Test limit
-        pid.i_limit.max = Some(50.0);
-        pid.i_limit.min = Some(-50.0);
+        pid.i_limit.set(-50.0, 50.0);
         assert_eq!(pid.update(5.0).unwrap().output, 50.0);
         // Test that limit doesn't impede reversal of error integral
         assert_eq!(pid.update(15.0).unwrap().output, 40.0);
@@ -467,14 +464,13 @@ mod tests {
         // Test that error integral accumulates negative values
         let mut pid2 = Pid::new()
             .setpoint(-10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .i(2.0);
 
         assert_eq!(pid2.update(0.0).unwrap().output, -20.0);
         assert_eq!(pid2.update(0.0).unwrap().output, -40.0);
 
-        pid2.i_limit.max = Some(50.0);
-        pid2.i_limit.min = Some(-50.0);
+        pid2.i_limit.set(-50.0, 50.0);
         assert_eq!(pid2.update(-5.0).unwrap().output, -50.0);
         // Test that limit doesn't impede reversal of error integral
         assert_eq!(pid2.update(-15.0).unwrap().output, -40.0);
@@ -485,11 +481,10 @@ mod tests {
     fn output_limit() {
         let mut pid = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .p(1.0);
 
-        pid.out_limit.max = Some(1.0);
-        pid.out_limit.min = Some(-1.0);
+        pid.out_limit.set(-1.0, 1.0);
 
         let out = pid.update(0.0).unwrap();
         assert_eq!(out.p, 10.0); // 1.0 * 10.0
@@ -505,7 +500,7 @@ mod tests {
     fn pid() {
         let mut pid = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .p(1.0)
             .i(0.1)
             .d(1.0);
@@ -541,11 +536,13 @@ mod tests {
     fn floats_zeros() {
         let mut pid_f32 = Pid::new()
             .setpoint(10.0f32)
-            .clamp(-100.0, 100.0);
+            .limit(-100.0, 100.0)
+            .p(0.0);
 
         let mut pid_f64 = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0f64, 100.0f64);
+            .limit(-100.0f64, 100.0f64)
+            .p(0.0);
 
         for _ in 0..5 {
             assert_eq!(
@@ -561,11 +558,13 @@ mod tests {
     fn signed_integers_zeros() {
         let mut pid_i8 = Pid::new()
             .setpoint(10i8)
-            .clamp(-100, 100);
+            .limit(-100, 100)
+            .p(0.0);
 
         let mut pid_i32 = Pid::new()
             .setpoint(10i32)
-            .clamp(-100, 100);
+            .limit(-100, 100)
+            .p(0.0);
 
         for _ in 0..5 {
             assert_eq!(
@@ -580,7 +579,7 @@ mod tests {
     fn setpoint() {
         let mut pid = Pid::new()
             .setpoint(10.0)
-            .clamp(-100.0, 100.0)
+            .limit(-100.0, 100.0)
             .p(1.0)
             .i(0.1)
             .d(1.0);
@@ -611,13 +610,12 @@ mod tests {
     fn negative_limits() {
         let mut pid = Pid::new()
             .setpoint(10.0f32)
-            .clamp(50.0, -50.0)
+            .limit(50.0, -50.0)
             .p(1.0)
             .i(1.0)
             .d(1.0);
 
-        pid.out_limit.max = Some(-10.0);
-        pid.out_limit.min = Some(10.0);
+        pid.out_limit.set(10.0, -10.0);
 
         let out = pid.update(0.0).unwrap();
         assert_eq!(out.p, 10.0);
