@@ -392,12 +392,12 @@ where
     /// 
     /// - If a setpoint has not been set via `setpoint()`.
     /// - If no gain is set via `p()`, `i()` or `d()`.
-    /// - If `dt` is zero.
+    /// - If `dt` <= zero.
     pub fn update_with_dt(&mut self, input: impl Into<T>, dt: impl Into<T>) -> Option<ControlOutput<T>> {
         // Convert parameters to number type
         let dt: T = dt.into();
         // Verify delta time value
-        if dt == T::zero() { return None };
+        if dt <= T::zero() { return None };
         // Store previous integral sum
         let i_term = self.i_term.map_or(T::zero(), |i| i);
         // Call normal update
