@@ -383,11 +383,21 @@ where
 
     /// Given a new measurement and a delta time, calculates the next [control output](ControlOutput).
     ///
+    /// Param `dt`: Delta Time is a unitary duration value used to adjust integral and derivative terms for any sampling frequency.
+    /// If `dt` is assumed to be in seconds, `ki` and `kd` will be represented in 1:1 ratio after 1 second of delay between samples.
+    /// Integral term is directly proportional to dt and derivative term is inversely proportional. This means that if dt=2 then integral
+    /// term will be ki*2 and derivative term will be kd/2.
+    ///
     /// # Returns None
     /// 
     /// - If a setpoint has not been set via `setpoint()`.
     /// - If no gain is set via `p()`, `i()` or `d()`.
+    /// - If `dt` is zero.
     pub fn update_with_dt(&mut self, input: impl Into<T>, dt: impl Into<T>) -> Option<ControlOutput<T>> {
+        // Convert parameters to number type
+        let dt: T = dt.into();
+        // Verify delta time value
+        if dt == T::zero() { return None };
         // Store previous integral sum
         let i_term = self.i_term.map_or(T::zero(), |i| i);
         // Call normal update
@@ -395,11 +405,13 @@ where
             .map(|out| self.ki.map_or(
                 out,
                 |ki| {
-                    // Convert parameters to number type
-                    let dt: T = dt.into();
                     // Calculate new integral term with delta time
                     let i_unbounded = (ki * out.error * dt) + i_term;
                     out.i = self.i_limit.clamp(i_unbounded);
+                    // Calculate new derivative term with delta time
+                    let d_unbounded = out.d / dt;
+                    out.d = self.d_limit.clamp(d_unbounded);
+                    // Sum new terms into output
                     let o_unbounded = out.p + out.i + out.d;
                     out.output = self.out_limit.clamp(o_unbounded);
                     self.prev = Some(out);
