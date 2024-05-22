@@ -268,6 +268,8 @@ where
     /// To set derivative term limits one must call
     /// [`self.d_limit.set`](PidLimit::set()).
     pub fn limit(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
+        let min: T = min.into();
+        let max: T = max.into();
         self.p_limit.set(min, max);
         self.i_limit.set(min, max);
         self.out_limit.set(min, max);
@@ -288,7 +290,7 @@ where
                 d: T::zero(),
                 output: T::zero(),
             },
-            |out| {
+            |mut out| {
                 out.i = i;
                 out
             }
@@ -300,7 +302,7 @@ where
     /// Resets the integral term back to zero, this may drastically change the
     /// control output.
     pub fn reset_integral_term(&mut self) -> &mut Self {
-        self.prev = self.prev.map(|out| {
+        self.prev = self.prev.map(|mut out| {
             out.i = T::zero();
             out
         });
@@ -356,7 +358,7 @@ where
                 let i_unbounded = (ki * error) + i_prev;
                 // Mitigate integral windup: Don't want to keep building up error
                 // beyond what i_limit will allow.
-                Some(self.i_limit.clamp(i_unbounded))
+                self.i_limit.clamp(i_unbounded)
             }
         );
         
@@ -415,10 +417,10 @@ where
         let prev = self.prev.clone();
         // Call normal update
         self.update(input)
-            .map(|out| {
+            .map(|mut out| {
                 // Calculate new integral term with delta time
                 let ki = self.ki.map_or(T::zero(), |ki| ki);
-                let i_prev = prev.map_or(T::zero(), |out| out.i)
+                let i_prev = prev.map_or(T::zero(), |out| out.i);
                 let i_unbounded = (ki * out.error * dt) + i_prev;
                 out.i = self.i_limit.clamp(i_unbounded);
                 // Calculate new derivative term with delta time
