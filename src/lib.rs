@@ -183,6 +183,7 @@ impl<T> PidLimit<T>
 where
     T: Number
 {
+    /// Creates a new limit struct
     pub const fn new() -> Self {
         Self {
             min: None,
@@ -190,8 +191,17 @@ where
         }
     }
 
+    /// Sets the min and max limits
+    pub fn set(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
+        let min: T = min.into();
+        let max: T = max.into();
+        self.min = Some(min);
+        self.max = Some(max);
+        self
+    }
+
     /// Clamp a given value using pre-defined limits
-    pub fn clamp(self, value: impl Into<T>) -> T {
+    pub fn clamp(&self, value: impl Into<T>) -> T {
         let mut value: T = value.into();
         value = if let Some(min) = self.min {
             if value < min {min} else {value}
@@ -252,29 +262,11 @@ where
         self
     }
 
-    /// Sets the min and max limits for this controller.
-    pub fn clamp(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
-        self.clamp_min(min)
-            .clamp_max(max)
-    } 
-
-    /// Sets the min limits for this controller.
-    pub fn clamp_min(&mut self, min: impl Into<T>) -> &mut Self {
-        let min: T = min.into();
-        self.p_limit.min = Some(min);
-        self.i_limit.min = Some(min);
-        self.d_limit.min = Some(min);
-        self.out_limit.min = Some(min);
-        self
-    }
-
-    /// Sets the max limits for this controller.
-    pub fn clamp_max(&mut self, max: impl Into<T>) -> &mut Self {
-        let max: T = max.into();
-        self.p_limit.max = Some(max);
-        self.i_limit.max = Some(max);
-        self.d_limit.max = Some(max);
-        self.out_limit.max = Some(max);
+    /// Sets the min and max limits for the controller.
+    pub fn limit(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
+        self.p_limit.set(min, max);
+        self.i_limit.set(min, max);
+        self.out_limit.set(min, max);
         self
     }
 
