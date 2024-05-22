@@ -118,9 +118,7 @@ pub struct Pid<T> {
     pub ki: Option<T>,
     /// Derivative gain.
     pub kd: Option<T>,
-    /// Last calculated integral value if [Pid::ki] is used.
-    pub i_term: Option<T>,
-    /// Previously found measurement whilst using the [Pid::next_control_output] method.
+    /// Previous control output calculated unsing the [Pid::update()] method.
     pub prev: Option<ControlOutput<T>>,
     /// Limiter for the proportional term: `-p_limit <= P <= p_limit`.
     pub p_limit: PidLimit<T>,
@@ -279,16 +277,19 @@ where
 
     /// Set integral term to a custom value. This might be useful to restore the
     /// pid controller to a previous state after an interruption or crash.
-    pub fn set_integral_term(&mut self, i_term: impl Into<T>) -> &mut Self {
-        let i_unbound: T = i_term.into();
-        self.i_term = Some(self.i_limit.clamp(i_unbound));
+    pub fn set_integral_term(&mut self, term: impl Into<T>) -> &mut Self {
+        let i_unbound: T = term.into();
+        self.prev.i = self.i_limit.clamp(i_unbound);
         self
     }
 
     /// Resets the integral term back to zero, this may drastically change the
     /// control output.
     pub fn reset_integral_term(&mut self) -> &mut Self {
-        self.i_term = None;
+        self.prev = self.prev.map(|out| {
+            out.i = T::zero();
+            out
+        });
         self
     }
 
@@ -329,24 +330,22 @@ where
         );
 
         // Calculate integral if it exists
-        self.i_term = self.ki.map_or(
-            self.i_term,
+        let i = self.ki.map_or(
+            T::zero(),
             |ki| {
-                let i_term = self.i_term.map_or(T::zero(), |i| i);
+                let i_prev = self.prev.map_or(T::zero(), |out| out.i);
                 // Mitigate output jumps when ki(t) != ki(t-1).
                 // While it's standard to use an error_integral that's a running sum of
                 // just the error (no ki), because we support ki changing dynamically,
                 // we store the entire term so that we don't need to remember previous
                 // ki values.
-                let i_unbounded = (ki * error) + i_term;
+                let i_unbounded = (ki * error) + i_prev;
                 // Mitigate integral windup: Don't want to keep building up error
                 // beyond what i_limit will allow.
                 Some(self.i_limit.clamp(i_unbounded))
             }
         );
-        // Get stored integral term if it exists
-        let i = self.i_term.map_or(T::zero(), |i| i);
-
+        
         // Calculate derivative if it exists
         let d = self.kd.map_or(
             T::zero(),
@@ -398,26 +397,25 @@ where
         let dt: T = dt.into();
         // Verify delta time value
         if dt <= T::zero() { return None };
-        // Store previous integral sum
-        let i_term = self.i_term.map_or(T::zero(), |i| i);
+        // Store previous output
+        let prev = self.prev.clone();
         // Call normal update
         self.update(input)
-            .map(|out| self.ki.map_or(
-                out,
-                |ki| {
-                    // Calculate new integral term with delta time
-                    let i_unbounded = (ki * out.error * dt) + i_term;
-                    out.i = self.i_limit.clamp(i_unbounded);
-                    // Calculate new derivative term with delta time
-                    let d_unbounded = out.d / dt;
-                    out.d = self.d_limit.clamp(d_unbounded);
-                    // Sum new terms into output
-                    let o_unbounded = out.p + out.i + out.d;
-                    out.output = self.out_limit.clamp(o_unbounded);
-                    self.prev = Some(out);
-                    out
-                }
-            ))
+            .map(|out| {
+                // Calculate new integral term with delta time
+                let ki = self.ki.map_or(T::zero(), |ki| ki);
+                let i_prev = prev.map_or(T::zero(), |out| out.i)
+                let i_unbounded = (ki * out.error * dt) + i_prev;
+                out.i = self.i_limit.clamp(i_unbounded);
+                // Calculate new derivative term with delta time
+                let d_unbounded = out.d / dt;
+                out.d = self.d_limit.clamp(d_unbounded);
+                // Sum new terms into output
+                let o_unbounded = out.p + out.i + out.d;
+                out.output = self.out_limit.clamp(o_unbounded);
+                self.prev = Some(out);
+                out
+            })
     }
 }
 
