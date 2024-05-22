@@ -393,7 +393,7 @@ where
         // Call normal update
         self.update(input)
             .map(|out| self.ki.map_or(
-                Some(out),
+                out,
                 |ki| {
                     // Convert parameters to number type
                     let dt: T = dt.into();
