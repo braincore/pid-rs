@@ -199,12 +199,12 @@ where
     /// Clamp a given value using pre-defined limits
     pub fn clamp(&self, value: impl Into<T>) -> T {
         let mut value: T = value.into();
-        value = if let Some(min) = self.min {
-            if value < min {min} else {value}
-        } else {value};
-        value = if let Some(max) = self.max {
-            if value > max {max} else {value}
-        } else {value};
+        value = self.min.map(|min| min.gt(&value).then_some(min))
+            .flatten()
+            .map_or(value, |x| x);
+        value = self.max.map(|max| max.lt(&value).then_some(max))
+            .flatten()
+            .map_or(value, |x| x);
         value
     }
 }
@@ -227,7 +227,6 @@ where
             kp: None,
             ki: None,
             kd: None,
-            i_term: None,
             prev: None,
             p_limit: PidLimit::<T>::new(),
             i_limit: PidLimit::<T>::new(),
@@ -279,7 +278,22 @@ where
     /// pid controller to a previous state after an interruption or crash.
     pub fn set_integral_term(&mut self, term: impl Into<T>) -> &mut Self {
         let i_unbound: T = term.into();
-        self.prev.i = self.i_limit.clamp(i_unbound);
+        let i = self.i_limit.clamp(i_unbound);
+        let out = self.prev.map_or(
+            ControlOutput {
+                input: T::zero(),
+                error: T::zero(),
+                p: T::zero(),
+                i,
+                d: T::zero(),
+                output: T::zero(),
+            },
+            |out| {
+                out.i = i;
+                out
+            }
+        );
+        self.prev = Some(out);
         self
     }
 
