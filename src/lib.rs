@@ -221,6 +221,8 @@ where
     /// - [Self::p()]: Proportional gain setting
     /// - [Self::i()]: Integral gain setting
     /// - [Self::d()]: Derivative gain setting
+    ///
+    /// To set output limits please use the [Self::limit()] method.
     pub const fn new() -> Self {
         Self {
             setpoint: None,
@@ -236,19 +238,19 @@ where
         }
     }
 
-    /// Sets the [Self::p] gain for this controller.
+    /// Sets the [Self::kp] gain for this controller.
     pub fn p(&mut self, gain: impl Into<T>) -> &mut Self {
         self.kp = Some(gain.into());
         self
     }
 
-    /// Sets the [Self::i] gain for this controller.
+    /// Sets the [Self::ki] gain for this controller.
     pub fn i(&mut self, gain: impl Into<T>) -> &mut Self {
         self.ki = Some(gain.into());
         self
     }
 
-    /// Sets the [Self::d] gain for this controller.
+    /// Sets the [Self::kd] gain for this controller.
     pub fn d(&mut self, gain: impl Into<T>) -> &mut Self {
         self.kd = Some(gain.into());
         self
@@ -261,6 +263,13 @@ where
     }
 
     /// Sets the min and max limits for the controller.
+    ///
+    /// This method sets the limits of proportional term,
+    /// integral term and total output, but does not set
+    /// the limits for derivative term.
+    ///
+    /// To set derivative term limits one must call
+    /// [`self.d_limit.set`](PidLimit::set()).
     pub fn limit(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
         self.p_limit.set(min, max);
         self.i_limit.set(min, max);
@@ -346,7 +355,7 @@ where
                 |prev| {
                     // Mitigate derivative kick: Use the derivative of the measurement
                     // rather than the derivative of the error.
-                    let d_unbounded = kd * (input - prev.input);
+                    let d_unbounded = -kd * (input - prev.input);
                     self.d_limit.clamp(d_unbounded)
                 }
         ));
