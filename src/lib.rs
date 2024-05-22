@@ -107,7 +107,7 @@ impl<T: PartialOrd + num_traits::Signed + Copy> Number for T {}
 /// # Type Warning
 ///
 /// [Number] is abstract and can be used with anything from a [i32] to an [i128] (as well as user-defined types). Because of this, very small types might overflow during calculation in [`next_control_output`](Self::next_control_output). You probably don't want to use [i8] or user-defined types around that size so keep that in mind when designing your controller.
-#[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Pid<T> {
     /// Ideal setpoint to strive for.
@@ -151,7 +151,7 @@ pub struct Pid<T> {
 /// let output = pid.update(26.2456).unwrap();
 /// println!("P: {}\nI: {}\nD: {}\nFinal Output: {}", output.p, output.i, output.d, output.output);
 /// ```
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ControlOutput<T> {
     /// The input value to the controller.
@@ -170,7 +170,7 @@ pub struct ControlOutput<T> {
     pub output: T,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEqa)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PidLimit<T> {
     min: Option<T>,
