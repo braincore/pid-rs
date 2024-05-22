@@ -130,6 +130,14 @@ pub struct Pid<T> {
     pub out_limit: PidLimit<T>, 
 }
 
+/// Limits of controller terms
+#[derive(Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PidLimit<T> {
+    min: Option<T>,
+    max: Option<T>,
+}
+
 /// Output of [controller iterations](Pid::next_control_output) with weights
 ///
 /// # Example
@@ -170,13 +178,7 @@ pub struct ControlOutput<T> {
     pub output: T,
 }
 
-#[derive(Clone, Copy, Eq, PartialEqa)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct PidLimit<T> {
-    min: Option<T>,
-    max: Option<T>,
-}
-
+// PidLimit methods
 impl<T> PidLimit<T>
 where
     T: Number
@@ -209,6 +211,7 @@ where
     }
 }
 
+// Pid methods
 impl<T> Pid<T>
 where
     T: Number
