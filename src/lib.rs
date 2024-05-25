@@ -262,20 +262,27 @@ where
         self
     }
 
-    /// Sets the min and max limits for the controller.
+    /// Sets the `min` and `max` limits for the controller output.
     ///
-    /// This method sets the limits of proportional term,
-    /// integral term and total output, but does not set
-    /// the limits for derivative term.
+    /// Calling this method sets asymmetric limits in the output,
+    /// that is, in the final sum of the `p`, `i` and `d` terms.
     ///
-    /// To set derivative term limits one must call
-    /// [`self.d_limit.set`](PidLimit::set()).
+    /// This method also sets symmetric limits to each individual term.
+    /// The symmetric limits are `-sym` and `+sym`, where `sym` is the
+    /// maximum between the absolute values of `min` and `max`.
+    ///
+    /// When these limits are set they will prevent integral term windup.
     pub fn limit(&mut self, min: impl Into<T>, max: impl Into<T>) -> &mut Self {
         let min: T = min.into();
         let max: T = max.into();
-        self.p_limit.set(min, max);
-        self.i_limit.set(min, max);
+        // Set asymmetric limits
         self.out_limit.set(min, max);
+        // Get maximum absolute value
+        let sym = min.abs().max(max.abs());
+        // Set symmetric limits
+        self.p_limit.set(-sym, sym);
+        self.i_limit.set(-sym, sym);
+        self.d_limit.set(-sym, sym);
         self
     }
 
@@ -304,7 +311,7 @@ where
 
     /// Resets the integral term back to zero, this may drastically change the
     /// control output.
-    pub fn reset_integral_term(&mut self) -> &mut Self {
+    pub fn reset(&mut self) -> &mut Self {
         self.prev = self.prev.map(|mut out| {
             out.i = T::zero();
             out
