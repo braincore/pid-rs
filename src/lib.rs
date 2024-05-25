@@ -278,7 +278,9 @@ where
         // Set asymmetric limits
         self.out_limit.set(min, max);
         // Get maximum absolute value
-        let sym = min.abs().max(max.abs());
+        let sym = if min.abs().ge(max.abs())
+        {min.abs()} else
+        {max.abs()};
         // Set symmetric limits
         self.p_limit.set(-sym, sym);
         self.i_limit.set(-sym, sym);
