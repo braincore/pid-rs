@@ -13,15 +13,9 @@ keywords = ["pid"]
 categories = ["no-std", "embedded", "algorithms"]
 readme = "README.md"
 
-[dependencies.num-traits]
-version = "0.2"
-default-features = false
-
-[dependencies.serde]
-version = "1.0"
-optional = true
-default-features = false
-features = ["derive"]
+[dependencies]
+num-traits = { version = "0.2", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
 [badges]
 travis-ci = { repository = "braincore/pid-rs" }
