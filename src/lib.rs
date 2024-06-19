@@ -264,11 +264,17 @@ where
         self.integral_term = T::zero();
     }
 
-    /// Set integral term to custom value. This might be important to set pid
-    /// controller to previous state after an interruption or crash
+    /// Set integral term to custom value.
+    /// This may drastically change the control output.
+    /// Use this to return the PID controller to a previous state after an interruption or crash.
     pub fn set_integral_term(&mut self, integral_term: impl Into<T>) -> &mut Self {
         self.integral_term = integral_term.into();
         self
+    }
+
+    /// Get the integral term.
+    pub fn get_integral_term(&self) -> T {
+        self.integral_term
     }
 }
 
