@@ -254,7 +254,7 @@ where
             p,
             i: self.integral_term,
             d,
-            output: output,
+            output,
         }
     }
 
