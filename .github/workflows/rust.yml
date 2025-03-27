@@ -24,5 +24,5 @@ jobs:
       run: cargo clippy -- -D warnings --verbose
     - name: Build
       run: cargo build --verbose
-    - name: Run tests
+    - name: Test
       run: cargo test --verbose
