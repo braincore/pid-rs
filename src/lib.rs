@@ -212,10 +212,21 @@ where
 
     /// Given a new measurement, calculates the next [control output](ControlOutput).
     ///
+    /// Assumes a constant time delta (`dt`) of one.
+    ///
     /// # Panics
     ///
     /// - If a setpoint has not been set via `update_setpoint()`.
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
+        self.next_control_output_with_dt(measurement, T::one())
+    }
+
+    /// Given a new measurement and dt, calculates the next [control output](ControlOutput).
+    ///
+    /// # Panics
+    ///
+    /// - If a setpoint has not been set via `update_setpoint()`.
+    pub fn next_control_output_with_dt(&mut self, measurement: T, dt: T) -> ControlOutput<T> {
         // Calculate the error between the ideal setpoint and the current
         // measurement to compare against
         let error = self.setpoint - measurement;
@@ -229,7 +240,7 @@ where
         // just the error (no ki), because we support ki changing dynamically,
         // we store the entire term so that we don't need to remember previous
         // ki values.
-        self.integral_term = self.integral_term + error * self.ki;
+        self.integral_term = self.integral_term + error * self.ki * dt;
 
         // Mitigate integral windup: Don't want to keep building up error
         // beyond what i_limit will allow.
@@ -240,7 +251,8 @@ where
         let d_unbounded = -match self.prev_measurement.as_ref() {
             Some(prev_measurement) => measurement - *prev_measurement,
             None => T::zero(),
-        } * self.kd;
+        } * self.kd
+            / dt;
         self.prev_measurement = Some(measurement);
         let d = apply_limit(self.d_limit, d_unbounded);
 
