@@ -211,10 +211,6 @@ where
     }
 
     /// Given a new measurement, calculates the next [control output](ControlOutput).
-    ///
-    /// # Panics
-    ///
-    /// - If a setpoint has not been set via `update_setpoint()`.
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
         // Calculate the error between the ideal setpoint and the current
         // measurement to compare against
