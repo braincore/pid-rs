@@ -215,48 +215,53 @@ where
     /// # Panics
     ///
     /// - If a setpoint has not been set via `update_setpoint()`.
+    /// Modify existing methods into thin wrappers
     pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
-        // Calculate the error between the ideal setpoint and the current
-        // measurement to compare against
-        let error = self.setpoint - measurement;
-
-        // Calculate the proportional term and limit to it's individual limit
-        let p_unbounded = error * self.kp;
-        let p = apply_limit(self.p_limit, p_unbounded);
-
-        // Mitigate output jumps when ki(t) != ki(t-1).
-        // While it's standard to use an error_integral that's a running sum of
-        // just the error (no ki), because we support ki changing dynamically,
-        // we store the entire term so that we don't need to remember previous
-        // ki values.
-        self.integral_term = self.integral_term + error * self.ki;
-
-        // Mitigate integral windup: Don't want to keep building up error
-        // beyond what i_limit will allow.
-        self.integral_term = apply_limit(self.i_limit, self.integral_term);
-
-        // Mitigate derivative kick: Use the derivative of the measurement
-        // rather than the derivative of the error.
-        let d_unbounded = -match self.prev_measurement.as_ref() {
-            Some(prev_measurement) => measurement - *prev_measurement,
-            None => T::zero(),
-        } * self.kd;
-        self.prev_measurement = Some(measurement);
-        let d = apply_limit(self.d_limit, d_unbounded);
-
-        // Calculate the final output by adding together the PID terms, then
-        // apply the final defined output limit
-        let output = p + self.integral_term + d;
-        let output = apply_limit(self.output_limit, output);
-
-        // Return the individual term's contributions and the final output
-        ControlOutput {
-            p,
-            i: self.integral_term,
-            d,
-            output,
-        }
+        // Wrapper at dt = 1.0 (maintains backward compatibility)
+        self.next_control_output_with_dt(measurement, T::one())
     }
+    // pub fn next_control_output(&mut self, measurement: T) -> ControlOutput<T> {
+    //     // Calculate the error between the ideal setpoint and the current
+    //     // measurement to compare against
+    //     let error = self.setpoint - measurement;
+
+    //     // Calculate the proportional term and limit to it's individual limit
+    //     let p_unbounded = error * self.kp;
+    //     let p = apply_limit(self.p_limit, p_unbounded);
+
+    //     // Mitigate output jumps when ki(t) != ki(t-1).
+    //     // While it's standard to use an error_integral that's a running sum of
+    //     // just the error (no ki), because we support ki changing dynamically,
+    //     // we store the entire term so that we don't need to remember previous
+    //     // ki values.
+    //     self.integral_term = self.integral_term + error * self.ki;
+
+    //     // Mitigate integral windup: Don't want to keep building up error
+    //     // beyond what i_limit will allow.
+    //     self.integral_term = apply_limit(self.i_limit, self.integral_term);
+
+    //     // Mitigate derivative kick: Use the derivative of the measurement
+    //     // rather than the derivative of the error.
+    //     let d_unbounded = -match self.prev_measurement.as_ref() {
+    //         Some(prev_measurement) => measurement - *prev_measurement,
+    //         None => T::zero(),
+    //     } * self.kd;
+    //     self.prev_measurement = Some(measurement);
+    //     let d = apply_limit(self.d_limit, d_unbounded);
+
+    //     // Calculate the final output by adding together the PID terms, then
+    //     // apply the final defined output limit
+    //     let output = p + self.integral_term + d;
+    //     let output = apply_limit(self.output_limit, output);
+
+    //     // Return the individual term's contributions and the final output
+    //     ControlOutput {
+    //         p,
+    //         i: self.integral_term,
+    //         d,
+    //         output,
+    //     }
+    // }
 
     /// Resets the integral term back to zero, this may drastically change the
     /// control output.
@@ -275,6 +280,94 @@ where
     /// Get the integral term.
     pub fn get_integral_term(&self) -> T {
         self.integral_term
+    }
+
+    /// Given a new measurement and time delta, calculates the next [control output](ControlOutput).
+    ///
+    /// This method properly handles time intervals for mathematically accurate integral and 
+    /// derivative calculations. Unlike [`next_control_output`](Self::next_control_output), this method
+    /// considers the actual time elapsed between measurements.
+    ///
+    /// # Mathematical Accuracy
+    /// 
+    /// - **Integral term**: `∫e(t)dt ≈ Σ(error × dt)` - accumulates error over time
+    /// - **Derivative term**: `de/dt = (measurement_change) / dt` - calculates rate of change
+    ///
+    /// # Arguments
+    /// 
+    /// * `measurement` - The current process variable measurement
+    /// * `dt` - Time interval since the last measurement (must be positive)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use pid::Pid;
+    /// 
+    /// let mut pid = Pid::new(25.0, 100.0);
+    /// pid.p(1.0, 100.0).i(0.1, 100.0).d(0.01, 100.0);
+    ///
+    /// // Regular intervals
+    /// let output1 = pid.next_control_output_with_dt(20.0, 0.1);  // 0.1 second
+    /// let output2 = pid.next_control_output_with_dt(22.0, 0.1);  // 0.1 second later
+    ///
+    /// // Irregular intervals work correctly too
+    /// let output3 = pid.next_control_output_with_dt(24.0, 0.05); // 0.05 second later
+    /// let output4 = pid.next_control_output_with_dt(25.5, 0.2);  // 0.2 second later
+    /// ```
+    /// 
+    /// # Note
+    /// 
+    /// If `dt` is zero or negative, the derivative term will be set to zero to avoid 
+    /// division by zero or invalid calculations.
+    pub fn next_control_output_with_dt(&mut self, measurement: T, dt: T) -> ControlOutput<T> {
+        // Calculate the error between the ideal setpoint and the current
+        // measurement to compare against
+        let error = self.setpoint - measurement;
+
+        // Calculate the proportional term and limit to it's individual limit
+        let p_unbounded = error * self.kp;
+        let p = apply_limit(self.p_limit, p_unbounded);
+
+        // Modification: Taking the time interval (dt) into account in the integral term
+        // Mitigate output jumps when ki(t) != ki(t-1).
+        // While it's standard to use an error_integral that's a running sum of
+        // just the error (no ki), because we support ki changing dynamically,
+        // we store the entire term so that we don't need to remember previous
+        // ki values.
+        self.integral_term = self.integral_term + error * self.ki * dt;
+
+        // Mitigate integral windup: Don't want to keep building up error
+        // beyond what i_limit will allow.
+        self.integral_term = apply_limit(self.i_limit, self.integral_term);
+
+        // Modification: Taking the time interval (dt) into account in the differential term
+        // Mitigate derivative kick: Use the derivative of the measurement
+        // rather than the derivative of the error.
+        let d_unbounded = -match self.prev_measurement.as_ref() {
+            Some(prev_measurement) => {
+                if dt > T::zero() {
+                    (measurement - *prev_measurement) / dt
+                } else {
+                    T::zero()  // dtが0の場合は微分項を0に
+                }
+            },
+            None => T::zero(),
+        } * self.kd;
+        self.prev_measurement = Some(measurement);
+        let d = apply_limit(self.d_limit, d_unbounded);
+
+        // Calculate the final output by adding together the PID terms, then
+        // apply the final defined output limit
+        let output = p + self.integral_term + d;
+        let output = apply_limit(self.output_limit, output);
+
+        // Return the individual term's contributions and the final output
+        ControlOutput {
+            p,
+            i: self.integral_term,
+            d,
+            output,
+        }
     }
 }
 
@@ -507,5 +600,91 @@ mod tests {
         assert_eq!(out.i, 10.0);
         assert_eq!(out.d, 0.0);
         assert_eq!(out.output, 10.0);
+    }
+
+    /// Test that dt properly affects integral calculation
+    #[test]
+    fn integral_with_dt() {
+        let mut pid1 = Pid::new(10.0f32, 100.0);  // Specify f32
+        pid1.p(0.0, 100.0).i(1.0, 100.0).d(0.0, 100.0);
+        
+        let mut pid2 = Pid::new(10.0f32, 100.0);  // Specify f32
+        pid2.p(0.0, 100.0).i(1.0, 100.0).d(0.0, 100.0);
+
+        // Same error, different dt
+        let output1 = pid1.next_control_output_with_dt(0.0, 0.1);  // dt = 0.1
+        let output2 = pid2.next_control_output_with_dt(0.0, 0.2);  // dt = 0.2
+
+        // Longer time interval should result in larger integral
+        assert_eq!(output1.i, 1.0);  // error(10.0) * ki(1.0) * dt(0.1) = 1.0
+        assert_eq!(output2.i, 2.0);  // error(10.0) * ki(1.0) * dt(0.2) = 2.0
+        assert!(output2.i > output1.i);
+    }
+
+    /// Test that dt properly affects derivative calculation
+    #[test]
+    fn derivative_with_dt() {
+        let mut pid = Pid::new(0.0f32, 100.0f32);
+        pid.p(0.0f32, 100.0f32).i(0.0f32, 100.0f32).d(1.0f32, 100.0f32);
+
+        // First measurement (no derivative yet)
+        let _ = pid.next_control_output_with_dt(0.0f32, 0.1f32);
+
+        // Second measurement with change
+        let output = pid.next_control_output_with_dt(1.0f32, 0.1f32);
+        
+        // derivative = -(1.0 - 0.0) / 0.1 * kd(1.0) = -10.0
+        assert_eq!(output.d, -10.0f32);
+
+        // Test with different dt
+        let mut pid2 = Pid::new(0.0f32, 100.0f32);
+        pid2.p(0.0f32, 100.0f32).i(0.0f32, 100.0f32).d(1.0f32, 100.0f32);
+        
+        let _ = pid2.next_control_output_with_dt(0.0f32, 0.2f32);
+        let output2 = pid2.next_control_output_with_dt(1.0f32, 0.2f32);
+        
+        // derivative = -(1.0 - 0.0) / 0.2 * kd(1.0) = -5.0
+        assert_eq!(output2.d, -5.0f32);
+        
+        // Comparison without using abs() (both are negative values)
+        // Since output.d = -10.0 and output2.d = -5.0
+        // In absolute value, |output.d| > |output2.d|, meaning output.d < output2.d
+        assert!(output.d < output2.d);
+    }
+
+    /// Test that existing method works as before (backwards compatibility)
+    #[test]
+    fn backwards_compatibility() {
+        let mut pid_old = Pid::new(10.0f32, 100.0);  // ✅ Specify f32
+        pid_old.p(1.0, 100.0).i(0.1, 100.0).d(1.0, 100.0);
+
+        let mut pid_new = Pid::new(10.0f32, 100.0);  // ✅ Specify f32
+        pid_new.p(1.0, 100.0).i(0.1, 100.0).d(1.0, 100.0);
+
+        // Both should give same result
+        let output_old = pid_old.next_control_output(5.0);
+        let output_new = pid_new.next_control_output_with_dt(5.0, 1.0);  // dt = 1.0
+
+        assert_eq!(output_old.p, output_new.p);
+        assert_eq!(output_old.i, output_new.i);
+        assert_eq!(output_old.d, output_new.d);
+        assert_eq!(output_old.output, output_new.output);
+    }
+
+    /// Test irregular update intervals
+    #[test]
+    fn irregular_intervals() {
+        let mut pid = Pid::new(20.0f32, 100.0);  // ✅ Specify f32
+        pid.p(1.0, 100.0).i(0.5, 100.0).d(0.1, 100.0);
+
+        // Simulate irregular sensor readings
+        let _output1 = pid.next_control_output_with_dt(15.0, 0.1);   // ✅ _をつけて警告を回避
+        let _output2 = pid.next_control_output_with_dt(18.0, 0.05);  // ✅ _をつけて警告を回避
+        let output3 = pid.next_control_output_with_dt(17.0, 0.3);    // 実際に使用
+
+        // Each should handle their respective dt correctly
+        // Integral should accumulate: (20-15)*0.5*0.1 + (20-18)*0.5*0.05 + (20-17)*0.5*0.3
+        // = 0.25 + 0.05 + 0.45 = 0.75
+        assert_eq!(output3.i, 0.75);
     }
 }
