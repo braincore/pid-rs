@@ -258,6 +258,11 @@ where
         }
     }
 
+    pub fn reset(&mut self) {
+        self.reset_integral_term();
+        self.prev_measurement = None;
+    }
+
     /// Resets the integral term back to zero, this may drastically change the
     /// control output.
     pub fn reset_integral_term(&mut self) {
